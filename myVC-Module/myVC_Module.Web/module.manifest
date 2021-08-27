@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<module>
+    <id>myVC_</id>
+    <version>1.0.0</version>
+    <version-tag></version-tag>
+    <platformVersion>3.0.0</platformVersion>
+    <dependencies>
+        <!--<dependency id="VirtoCommerce.Core" version="3.0.0" />-->
+    </dependencies>
+
+    <title>Zoop payment gateway</title>
+    <description>Enter your module description here.</description>
+    <authors>
+        <author>jose_</author>
+    </authors>
+    <owners>
+      <owner></owner>
+    </owners>
+
+    <releaseNotes>First version.</releaseNotes>
+    <copyright>Copyright © 2021 . All rights reserved</copyright>
+    <tags>Zoop payment gateway</tags>
+  
+    <assemblyFile>myVC_Module.Web.dll</assemblyFile>
+    <moduleType>myVC_Module.Web.Module, myVC_Module.Web</moduleType>
+    <dependencies>
+      <dependency id="VirtoCommerce.Store" version="3.0.0" />
+      <dependency id="VirtoCommerce.Orders" version="3.0.0" />
+      <dependency id="VirtoCommerce.Payment" version="3.0.2" />
+    </dependencies>
+</module>
