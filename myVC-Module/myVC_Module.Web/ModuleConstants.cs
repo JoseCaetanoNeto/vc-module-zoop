@@ -30,8 +30,8 @@ namespace Zoop.Web
                 {
                     Name = "VirtoCommerce.Payment.Zoop.VCmanagerURL",
                     GroupName = "Payment|Zoop",
-                    ValueType = SettingValueType.LongText,
-                    DefaultValue = "{VC manager URL}"
+                    ValueType = SettingValueType.SecureString,
+                    DefaultValue = ""
                 };
 
                 public static readonly SettingDescriptor Capture = new SettingDescriptor
