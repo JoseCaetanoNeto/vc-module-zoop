@@ -7,6 +7,7 @@ using VirtoCommerce.PaymentModule.Core.Services;
 using VirtoCommerce.Platform.Core.Modularity;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.Zoop.Web.Services;
+using VirtoCommerce.CustomerModule.Core.Services;
 
 namespace Zoop.Web
 {
@@ -29,10 +30,13 @@ namespace Zoop.Web
             var settingsRegistrar = appBuilder.ApplicationServices.GetRequiredService<ISettingsRegistrar>();
             settingsRegistrar.RegisterSettings(ModuleConstants.Settings.AllSettings, ModuleInfo.Id);
             settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.Zoop.Settings, nameof(ZoopMethod));
+            settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.ZoopBoleto.Settings, nameof(ZoopMethodBoleto));
 
             var ZoopOptions = appBuilder.ApplicationServices.GetRequiredService<IOptions<ZoopSecureOptions>>();
             var paymentMethodsRegistrar = appBuilder.ApplicationServices.GetRequiredService<IPaymentMethodsRegistrar>();
+            var customer = appBuilder.ApplicationServices.GetRequiredService<IMemberService>();
             paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethod(ZoopOptions));
+            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, customer));
         }
 
         public void Uninstall()

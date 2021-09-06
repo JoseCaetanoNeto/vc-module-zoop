@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\myVC_Module.Web\myVC_Module.Web.csproj" />
+    <ProjectReference Include="..\vc-module-zoop.Web\vc-module-zoop.Web.csproj" />
   </ItemGroup>
 
 </Project>

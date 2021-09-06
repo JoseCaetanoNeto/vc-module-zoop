@@ -7,6 +7,47 @@ namespace Zoop.Web
     {
         public static class Settings
         {
+            public static class ZoopBoleto
+            {
+
+                public static readonly SettingDescriptor DefaultSaller = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.DefaultSaller",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "informe código do vendedor padrão da zoop"
+                };
+
+                public static readonly SettingDescriptor VCmanagerURL = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.VCmanagerURL",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.SecureString,
+                    DefaultValue = ""
+                };
+
+                public static readonly SettingDescriptor statusOrderOnWaitingConfirm = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.statusOrderOnWaitingConfirm",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "Pending"
+                };
+
+                public static IEnumerable<SettingDescriptor> Settings
+                {
+                    get
+                    {
+                        return new List<SettingDescriptor>
+                        {
+                            DefaultSaller,
+                            statusOrderOnWaitingConfirm,
+                            VCmanagerURL,
+                        };
+                    }
+                }
+
+            }
             public static class Zoop
             {
 
@@ -18,12 +59,12 @@ namespace Zoop.Web
                     DefaultValue = "informe código do vendedor padrão da zoop"
                 };
 
-                public static readonly SettingDescriptor MaxParc = new SettingDescriptor
+                public static readonly SettingDescriptor MaxNumberInstallments = new SettingDescriptor
                 {
-                    Name = "VirtoCommerce.Payment.Zoop.Parc",
+                    Name = "VirtoCommerce.Payment.Zoop.MaxNumberInstallments",
                     GroupName = "Payment|Zoop",
-                    ValueType = SettingValueType.Json,
-                    DefaultValue = "{'visa':1,'cred':1}"
+                    ValueType = SettingValueType.PositiveInteger,
+                    DefaultValue = 1
                 };
 
                 public static readonly SettingDescriptor VCmanagerURL = new SettingDescriptor
@@ -99,6 +140,7 @@ namespace Zoop.Web
                     DefaultValue = "Unpaid"
                 };
 
+
                 public static IEnumerable<SettingDescriptor> Settings
                 {
                     get
@@ -115,7 +157,7 @@ namespace Zoop.Web
                             statusOrderOnFailedPreAuthorization,
                             statusOrderOnCancelAuthorization,
                             VCmanagerURL,
-                            MaxParc,
+                            MaxNumberInstallments,
                         };
                     }
                 }
@@ -125,7 +167,10 @@ namespace Zoop.Web
             {
                 get
                 {
-                    return Zoop.Settings;
+                    var list = new List<SettingDescriptor>();
+                    list.AddRange(Zoop.Settings);
+                    list.AddRange(ZoopBoleto.Settings);
+                    return list;
                 }
             }
         }

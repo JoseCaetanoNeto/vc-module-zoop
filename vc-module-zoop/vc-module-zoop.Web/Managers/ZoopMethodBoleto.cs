@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using VirtoCommerce.CustomerModule.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.PaymentModule.Model.Requests;
@@ -18,18 +19,20 @@ using VirtoCommerce.StoreModule.Core.Model;
 
 namespace Zoop.Web.Managers
 {
-    public class ZoopMethod : PaymentMethod
+    public class ZoopMethodBoleto : PaymentMethod
     {
-        public ZoopMethod(IOptions<ZoopSecureOptions> options) : base(nameof(ZoopMethod))
+        public ZoopMethodBoleto(IOptions<ZoopSecureOptions> options, IMemberService pMemberService) : base(nameof(ZoopMethodBoleto))
         {
             _options = options?.Value ?? new ZoopSecureOptions();
+            _memberService = pMemberService;
         }
 
         private readonly ZoopSecureOptions _options;
+        private readonly IMemberService _memberService;
 
-        public override PaymentMethodType PaymentMethodType => PaymentMethodType.Standard;
+        public override PaymentMethodType PaymentMethodType => PaymentMethodType.Unknown;
 
-        public override PaymentMethodGroupType PaymentMethodGroupType => PaymentMethodGroupType.BankCard;
+        public override PaymentMethodGroupType PaymentMethodGroupType => PaymentMethodGroupType.Alternative;
 
         private string defaultSaller
         {
@@ -46,35 +49,6 @@ namespace Zoop.Web.Managers
             {
                 return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.VCmanagerURL.Name,
                     ModuleConstants.Settings.Zoop.VCmanagerURL.DefaultValue.ToString());
-            }
-        }
-
-        private bool Capture
-        {
-            get
-            {
-                bool.TryParse(Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.Capture.Name,
-                    ModuleConstants.Settings.Zoop.Capture.DefaultValue.ToString()), out bool cap);
-                return cap;
-            }
-        }
-
-        private int MaxParc
-        {
-            get
-            {
-                int.TryParse(Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.MaxParc.Name,
-                    ModuleConstants.Settings.Zoop.MaxParc.DefaultValue.ToString()), out int max);
-                return max;
-            }
-        }
-
-        private string installmentPlan
-        {
-            get
-            {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.installmentPlan.Name,
-                    ModuleConstants.Settings.Zoop.installmentPlan.DefaultValue.ToString());
             }
         }
 
@@ -141,7 +115,6 @@ namespace Zoop.Web.Managers
             // Need to check shop existence, though not using it
             var store = request.Store as Store ?? throw new InvalidOperationException($"\"{nameof(request.Store)}\" should not be null and of \"{nameof(Store)}\" type.");
 #pragma warning restore S1481 // Unused local variables should be removed
-            var bankCardInfo = request.BankCardInfo ?? throw new InvalidOperationException($"\"{nameof(request.BankCardInfo)}\" should not be null and of \"{nameof(BankCardInfo)}\" type.");
 
             var retVal = AbstractTypeFactory<ProcessPaymentRequestResult>.TryCreateInstance();
             if (payment.PaymentStatus == PaymentStatus.Paid)
@@ -151,33 +124,22 @@ namespace Zoop.Web.Managers
                 return retVal;
             }
 
-            var transactionInput = new ModelApi.TransactionIn
-            {
-                ReferenceId = order.Id,
-                OnBehalfOf = defaultSaller,
-                Amount = Convert.ToInt32(payment.Sum * 100),
-                Capture = Capture,
-                StatementDescriptor = store.Name,
-                installmentPlan = new ModelApi.TransactionIn.InstallmentPlan { NumberInstallments = 1, Mode = installmentPlan }, // TODO: FALTA PARCELAMENTO
-                source = new ModelApi.TransactionIn.Source
-                {
-                    Type = "card",
-                    Card = new ModelApi.TransactionIn.Card
-                    {
-                        CardNumber = bankCardInfo.BankCardNumber,
-                        ExpirationMonth = bankCardInfo.BankCardMonth.ToString(),
-                        ExpirationYear = bankCardInfo.BankCardYear.ToString(),
-                        HolderName = bankCardInfo.CardholderName,
-                        SecurityCode = bankCardInfo.BankCardCVV2
-                    }
-                }
-            };
+            ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
 
             try
             {
-                ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
                 zoopService.registerWebHook(VCmanagerURL);
-                var transation = zoopService.NewCardTansation(transactionInput);
+
+                ModelApi.BuyerOut buyerOut = SenderBuyer(order, zoopService, request.Parameters);
+                if (buyerOut.error != null && buyerOut.error.status_code != 0)
+                {
+                    retVal.IsSuccess = false;
+                    retVal.ErrorMessage = buyerOut.error.message_display;
+                    return retVal;
+                }
+
+                ModelApi.TransactionOut transation = SenderTransactionBoleto(payment, order, zoopService, buyerOut);
+                zoopService.SendMailBoletoTansation(transation.Id);
                 ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                 payment.Status = PaymentStatus.Pending.ToString();
                 retVal.OuterId = payment.OuterId = transation.Id;
@@ -205,6 +167,76 @@ namespace Zoop.Web.Managers
             return retVal;
         }
 
+        private ModelApi.TransactionOut SenderTransactionBoleto(PaymentIn payment, CustomerOrder order, ZoopService zoopService, ModelApi.BuyerOut buyerOut)
+        {
+            var transactionInput = new ModelApi.TransactionBoletoIn
+            {
+                ReferenceId = order.Id,
+                Currency = order.Currency,
+                Description = "Vende", // configuração
+                OnBehalfOf = defaultSaller,
+                Customer = buyerOut.Id,
+                Amount = Convert.ToInt32(payment.Sum * 100),
+                paymentMethod = new ModelApi.TransactionBoletoIn.PaymentMethod()
+                {
+                    BodyInstructions = new List<string>() {
+                        "Pedido #" + order.Number, // configuração
+                    },
+                    /*ExpirationDate = "",
+                    PaymentLimitDate = "",*/
+                    BillingInstructions = new ModelApi.TransactionBoletoIn.BillingInstructions()
+                    {
+                        Interest = new ModelApi.TransactionBoletoIn.Interest()
+                        {
+                            Amount = 0,           // configuração
+                            Mode = "DAILY_AMOUNT" // configuração
+                        },
+                        /*Discount = new List<ModelApi.TransactionBoletoIn.Discount>() { 
+                            new ModelApi.TransactionBoletoIn.Discount() { 
+                                Amount = 0,         // configuração
+                                LimitDate = "" ,    // configuração
+                                Mode = ""           // configuração
+                            }
+                        },*/
+                        LateFee = new ModelApi.TransactionBoletoIn.LateFee()
+                        {
+                            Amount = 0,             // configuração
+                            Mode = "FIXED"          // configuração
+                        }
+                    }
+                }
+            };
+
+            var transation = zoopService.NewBoletoTansation(transactionInput);
+            return transation;
+        }
+
+        private static ModelApi.BuyerOut SenderBuyer(CustomerOrder order, ZoopService zoopService, NameValueCollection pParam)
+        {
+            var address = order.Shipments.FirstOrDefault().DeliveryAddress;
+            var buyer = new ModelApi.BuyerIn
+            {
+                FirstName = address.FirstName,
+                LastName = address.LastName,
+                TaxpayerId = pParam != null ? pParam["TaxpayerId"] : null, // TODO: FALTA CPF
+                Email = address.Email,
+                PhoneNumber = address.Phone,
+                address = new ModelApi.BuyerIn.Address()
+                {
+                    City = address.City,
+                    CountryCode = address.CountryCode,
+                    Line1 = address.Line1,
+                    Line2 = address.Line2,
+                    Neighborhood = address.RegionName,
+                    PostalCode = address.PostalCode,
+                    State = address.RegionId
+                },
+            };
+
+            var buyerOut = zoopService.UpdateBuyer(buyer);
+            return buyerOut;
+        }
+
         private void ApplyOrderStatus(CustomerOrder order, string pNewStatusOrder)
         {
             if (!string.IsNullOrEmpty(pNewStatusOrder))
@@ -222,7 +254,7 @@ namespace Zoop.Web.Managers
                 Amount = Convert.ToInt32(payment.Sum * 100),
                 OnBehalfOf = defaultSaller
             };
-            
+
             var retVal = AbstractTypeFactory<CapturePaymentRequestResult>.TryCreateInstance();
 
             ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
@@ -301,7 +333,7 @@ namespace Zoop.Web.Managers
                     CreatedDate = history.UpdatedAt.Value,
                     ResponseData = JsonConvert.SerializeObject(history)
                 });
-                
+
                 if (history.OperationType == "authorization" && history.Status == "succeeded")
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
@@ -343,7 +375,7 @@ namespace Zoop.Web.Managers
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Cancelled;
                     result.IsSuccess = true;
-                    
+
                     if (!order.IsCancelled)
                         ApplyOrderStatus(order, statusOrderOnCancelAuthorization);
 
@@ -405,7 +437,7 @@ namespace Zoop.Web.Managers
                 retVal.IsSuccess = false;
             }
 
-            return retVal; 
+            return retVal;
         }
 
         public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)

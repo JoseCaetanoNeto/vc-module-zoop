@@ -21,8 +21,8 @@
     <copyright>Copyright © 2021 . All rights reserved</copyright>
     <tags>Zoop payment gateway</tags>
   
-    <assemblyFile>myVC_Module.Web.dll</assemblyFile>
-    <moduleType>myVC_Module.Web.Module, myVC_Module.Web</moduleType>
+    <assemblyFile>vc-module-zoop.Web.dll</assemblyFile>
+    <moduleType>vc-module-zoop.Web.Module, vc-module-zoop.Web</moduleType>
     <dependencies>
       <dependency id="VirtoCommerce.Store" version="3.0.0" />
       <dependency id="VirtoCommerce.Orders" version="3.0.0" />

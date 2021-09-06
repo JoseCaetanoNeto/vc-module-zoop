@@ -9,7 +9,11 @@
   "payment": {
     "labels": {
       "ZoopMethod": {
-        "name": "Zoop payment gateway",
+        "name": "Zoop payment gateway - Card",
+        "description": "Zoop payment gateway integration"
+      },
+      "ZoopMethodBoleto": {
+        "name": "Zoop payment gateway - Boleto",
         "description": "Zoop payment gateway integration"
       }
     }
@@ -28,9 +32,9 @@
         "title": "Vendedor default",
         "description": "Informar o GUID do vendedor que será utilizado para os pagamentos em cartão"
       },
-      "Parc": {
-        "title": "Maximo de parcela por bandeira",
-        "description": "informar a tabela de máximo de parcelas"
+      "MaxNumberInstallments": {
+        "title": "Maximo de parcelas",
+        "description": "informar máximo de parcelas"
       },
       "VCmanagerURL": {
         "title": "Your URL Virto Commerce manager",
@@ -67,6 +71,24 @@
       "statusOrderOnCancelAuthorization": {
         "title": "status Order On Cancel Authorization or Pre-Authorization",
         "description": "Order status when canceling authorization or pre-authorization, does not affect if the order is already canceled"
+      }
+    },
+    "VirtoCommerce.Payment.ZoopBoleto": {
+      "marketplace_id": {
+        "title": "ID do Marketplace na zoop",
+        "description": "Informe o ID do Marketplace fornecido pela Zoop"
+      },
+      "DefaultSaller": {
+        "title": "Vendedor default",
+        "description": "Informar o GUID do vendedor que será utilizado para os pagamentos em cartão"
+      },
+      "VCmanagerURL": {
+        "title": "Your URL Virto Commerce manager",
+        "description": "informar a URL do VC manager"
+      },
+      "statusOrderOnWaitingConfirm": {
+        "title": "status Order On Waiting Confirm",
+        "description": "status Order On Waiting Gateway Confirm"
       }
     }
   }
