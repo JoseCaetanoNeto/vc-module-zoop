@@ -13,7 +13,7 @@ using VirtoCommerce.StoreModule.Core.Services;
 using Zoop.ModelApi;
 using Zoop.Web.Managers;
 using Newtonsoft.Json;
-using VirtoCommerce.PaymentModule.Core.Model;
+using Zoop.Web;
 
 namespace VirtoCommerce.Zoop.Web.Services
 {
@@ -35,32 +35,9 @@ namespace VirtoCommerce.Zoop.Web.Services
             if (string.IsNullOrEmpty(orderId))
                 return null;
 
-            switch (paymentParameters.type)
-            {
-                //case "buyer.transaction.canceled":
-                //case "buyer.transaction.charged_back":
-                //case "buyer.transaction.commission.succeeded":
-                //case "buyer.transaction.dispute.succeeded":
-                //case "buyer.transaction.disputed":
-                //case "buyer.transaction.failed":
-                //case "buyer.transaction.reversed":
-                //case "buyer.transaction.succeeded":
-                //case "buyer.transaction.updated":
-                case "transaction.pre_authorization.succeeded":
-                case "transaction.pre_authorized":
-                case "transaction.canceled":
-                case "transaction.charged_back":
-                //case "transaction.commission.succeeded":
-                //case "transaction.dispute.succeeded":
-                //case "transaction.disputed":
-                case "transaction.failed":
-                case "transaction.reversed":
-                case "transaction.succeeded":
-                case "transaction.updated":
-                    break;
-                default:
-                    return null;
-            }
+            if (!ZoopService.s_needEvents.Contains(paymentParameters.type))
+                return null;
+            
 
             string result = null;
             var order = (await _customerOrderService.GetByIdsAsync(new[] { orderId })).FirstOrDefault();
@@ -69,33 +46,33 @@ namespace VirtoCommerce.Zoop.Web.Services
                 throw new ArgumentException("Order for specified orderId not found.", "orderId");
             }
 
+            PaymentIn payment = order.InPayments.FirstOrDefault(x => (x.GatewayCode.EqualsInvariant(nameof(ZoopMethodCard)) || x.GatewayCode.EqualsInvariant(nameof(ZoopMethodBoleto))) && x.OuterId == paymentParameters.payload.@object.Id);
+            if (payment == null)
+            {
+                return null;
+            }
+
             var store = await _storeService.GetByIdAsync(order.StoreId);
+
+            var context = new PostProcessPaymentRequest
+            {
+                Order = order,
+                Payment = payment,
+                Store = store,
+                OuterId = paymentParameters.payload.@object.Id,
+                Parameters = new NameValueCollection() { { "x_TransactionOut", JsonConvert.SerializeObject(paymentParameters.payload.@object) } }
+            };
+
 
             var paymentMethodsSearchCriteria = AbstractTypeFactory<PaymentMethodsSearchCriteria>.TryCreateInstance();
             paymentMethodsSearchCriteria.StoreId = store.Id;
-            paymentMethodsSearchCriteria.Codes = new[] { nameof(ZoopMethod) };
+            paymentMethodsSearchCriteria.Codes = new[] { payment.GatewayCode };
             paymentMethodsSearchCriteria.IsActive = true;
-
             var authorizePaymentMethods = await _paymentMethodsSearchService.SearchPaymentMethodsAsync(paymentMethodsSearchCriteria);
-            var paymentMethod = authorizePaymentMethods.Results.FirstOrDefault(x => x.Code.EqualsInvariant(nameof(ZoopMethod)));
 
+            var paymentMethod = authorizePaymentMethods.Results.FirstOrDefault();
             if (paymentMethod != null)
             {
-                PaymentIn payment = order.InPayments.FirstOrDefault(x => x.GatewayCode.EqualsInvariant(nameof(ZoopMethod)) && x.OuterId == paymentParameters.payload.@object.Id);
-                if (payment == null)
-                {
-                    return null;
-                }
-
-                var context = new PostProcessPaymentRequest
-                {
-                    Order = order,
-                    Payment = payment,
-                    Store = store,
-                    OuterId = paymentParameters.payload.@object.Id,
-                    Parameters = new NameValueCollection() { { "x_TransactionOut", JsonConvert.SerializeObject(paymentParameters.payload.@object) } }
-                };
-
                 var retVal = paymentMethod.PostProcessPayment(context);
 
                 await _customerOrderService.SaveChangesAsync(new[] { order });

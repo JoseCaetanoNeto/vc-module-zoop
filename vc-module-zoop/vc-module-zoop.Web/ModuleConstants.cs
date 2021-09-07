@@ -34,6 +34,97 @@ namespace Zoop.Web
                     DefaultValue = "Pending"
                 };
 
+                public static readonly SettingDescriptor statusOrderOnOverdue = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.statusOrderOnOverdue",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "Unpaid"
+                };
+
+                public static readonly SettingDescriptor statusOrderOnPaid = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.statusOrderOnPaid",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "Processing"
+                };
+
+                public static readonly SettingDescriptor interestMode = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.interestMode",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    AllowedValues = new[] { "DAILY_AMOUNT", "DAILY_PERCENTAGE" , "MONTHLY_PERCENTAGE" },
+                    DefaultValue = "DAILY_AMOUNT"
+                };
+
+                public static readonly SettingDescriptor interestAmount = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.interestAmount",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.Decimal,
+                    DefaultValue = 0d
+                };
+
+                public static readonly SettingDescriptor lateFeeMode = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.lateFeeMode",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    AllowedValues = new[] { "PERCENTAGE", "FIXED" },
+                    DefaultValue = "PERCENTAGE"
+                };
+
+                public static readonly SettingDescriptor lateFeeAmount = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.lateFeeAmount",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.Decimal,
+                    DefaultValue = 0d
+                };
+
+
+                public static readonly SettingDescriptor ExpirationInDays = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.ExpirationInDays",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.PositiveInteger,
+                    DefaultValue = 2
+                };
+
+                public static readonly SettingDescriptor PaymentLimitInDays = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.PaymentLimitInDays",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.PositiveInteger,
+                    DefaultValue = 2
+                };
+
+                public static readonly SettingDescriptor Description = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.Description",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = ""
+                };
+
+                public static readonly SettingDescriptor UrlLogo = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.UrlLogo",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = ""
+                };
+
+                public static readonly SettingDescriptor BodyInstructions = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.BodyInstructions",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "Pedido :#order.Number"
+                };
+
                 public static IEnumerable<SettingDescriptor> Settings
                 {
                     get
@@ -42,6 +133,17 @@ namespace Zoop.Web
                         {
                             DefaultSaller,
                             statusOrderOnWaitingConfirm,
+                            statusOrderOnOverdue,
+                            statusOrderOnPaid,
+                            interestMode,
+                            interestAmount,
+                            lateFeeMode,
+                            lateFeeAmount,
+                            ExpirationInDays,
+                            PaymentLimitInDays,
+                            Description,
+                            UrlLogo,
+                            BodyInstructions,
                             VCmanagerURL,
                         };
                     }

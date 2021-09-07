@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Security.Cryptography;
-using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using VirtoCommerce.OrdersModule.Core.Model;
@@ -18,11 +15,13 @@ using VirtoCommerce.StoreModule.Core.Model;
 
 namespace Zoop.Web.Managers
 {
-    public class ZoopMethod : PaymentMethod
+    public class ZoopMethodCard : PaymentMethod
     {
-        public ZoopMethod(IOptions<ZoopSecureOptions> options) : base(nameof(ZoopMethod))
+        IDynamicPropertySearchService _dynamicPropertySearchService;
+        public ZoopMethodCard(IOptions<ZoopSecureOptions> options, IDynamicPropertySearchService dynamicPropertySearchService) : base(nameof(ZoopMethodCard))
         {
             _options = options?.Value ?? new ZoopSecureOptions();
+            _dynamicPropertySearchService = dynamicPropertySearchService;
         }
 
         private readonly ZoopSecureOptions _options;
@@ -59,7 +58,7 @@ namespace Zoop.Web.Managers
             }
         }
 
-        private int MaxParc
+        private int MaxNumberInstallments
         {
             get
             {
@@ -153,6 +152,18 @@ namespace Zoop.Web.Managers
 
             int numberInstallments = 1;
             int.TryParse(bankCardInfo.BankCardType, out numberInstallments);
+
+            if (numberInstallments > MaxNumberInstallments)
+            {
+                retVal.ErrorMessage = "Invalid number Installments";
+                retVal.IsSuccess = false;
+                return retVal;
+            }
+
+            IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
+
+            SetDynamicProp(resultSearch, payment, "numberInstallments", numberInstallments);
+
             var transactionInput = new ModelApi.TransactionIn
             {
                 ReferenceId = order.Id,
@@ -160,7 +171,7 @@ namespace Zoop.Web.Managers
                 Amount = Convert.ToInt32(payment.Sum * 100),
                 Capture = Capture,
                 StatementDescriptor = store.Name,
-                installmentPlan = new ModelApi.TransactionIn.InstallmentPlan { NumberInstallments = numberInstallments, Mode = installmentPlan }, 
+                installmentPlan = new ModelApi.TransactionIn.InstallmentPlan { NumberInstallments = numberInstallments, Mode = installmentPlan },
                 source = new ModelApi.TransactionIn.Source
                 {
                     Type = "card",
@@ -178,20 +189,24 @@ namespace Zoop.Web.Managers
             try
             {
                 ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-                zoopService.registerWebHook(VCmanagerURL);
+                Task.Run(() => zoopService.registerWebHook(VCmanagerURL));
                 var transation = zoopService.NewCardTansation(transactionInput);
-                ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                 payment.Status = PaymentStatus.Pending.ToString();
                 retVal.OuterId = payment.OuterId = transation.Id;
                 // aguarda retorno da zoop para mudar o status
                 retVal.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Custom;
                 if (transation.error != null && transation.error.status_code != 0)
                 {
+                    ApplyOrderStatus(order, statusOrderOnCancelAuthorization);
                     retVal.IsSuccess = false;
-                    retVal.ErrorMessage = transation.error.message_display;
+                    retVal.ErrorMessage = transation.error.message_display == null ? transation.error.message : transation.error.message_display;
                 }
                 else
                 {
+                    SetDynamicProp(resultSearch, payment, "installment_plan", transation.installmentPlan.Mode);
+                    SetDynamicProp(resultSearch, payment, "zoop_fee_brazil", transation.fees.Total);
+
+                    ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                     retVal.IsSuccess = true;
                 }
                 return retVal;
@@ -205,6 +220,22 @@ namespace Zoop.Web.Managers
             }
 
             return retVal;
+        }
+
+        private void SetDynamicProp(IList<DynamicProperty> resultSearch, PaymentIn pPayment, string pName, object pValue)
+        {
+            var property = pPayment.DynamicProperties.FirstOrDefault(o => o.Name == pName);
+            if (property == null)
+            {
+                if (pPayment.DynamicProperties.IsReadOnly)
+                    pPayment.DynamicProperties = new List<DynamicObjectProperty>();
+
+                property = new DynamicObjectProperty { Name = pName, ValueType = (pValue is int ? DynamicPropertyValueType.Integer : pValue is decimal ? DynamicPropertyValueType.Decimal : DynamicPropertyValueType.ShortText) };
+                pPayment.DynamicProperties.Add(property);
+            }
+            var prop = resultSearch.FirstOrDefault(o => o.Name == pName);
+            property.Values = new List<DynamicPropertyObjectValue>(new[] { new DynamicPropertyObjectValue { Value = pValue, PropertyId = prop.Id } });
+
         }
 
         private void ApplyOrderStatus(CustomerOrder order, string pNewStatusOrder)
@@ -224,7 +255,7 @@ namespace Zoop.Web.Managers
                 Amount = Convert.ToInt32(payment.Sum * 100),
                 OnBehalfOf = defaultSaller
             };
-            
+
             var retVal = AbstractTypeFactory<CapturePaymentRequestResult>.TryCreateInstance();
 
             ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
@@ -303,7 +334,7 @@ namespace Zoop.Web.Managers
                     CreatedDate = history.UpdatedAt.Value,
                     ResponseData = JsonConvert.SerializeObject(history)
                 });
-                
+
                 if (history.OperationType == "authorization" && history.Status == "succeeded")
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
@@ -345,7 +376,7 @@ namespace Zoop.Web.Managers
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Cancelled;
                     result.IsSuccess = true;
-                    
+
                     if (!order.IsCancelled)
                         ApplyOrderStatus(order, statusOrderOnCancelAuthorization);
 
@@ -407,7 +438,7 @@ namespace Zoop.Web.Managers
                 retVal.IsSuccess = false;
             }
 
-            return retVal; 
+            return retVal;
         }
 
         public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)

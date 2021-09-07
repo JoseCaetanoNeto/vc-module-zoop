@@ -1,19 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Globalization;
 using System.Linq;
-using System.Net;
-using System.Security.Cryptography;
-using System.Text;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using VirtoCommerce.CustomerModule.Core.Model;
 using VirtoCommerce.CustomerModule.Core.Services;
 using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.PaymentModule.Model.Requests;
 using VirtoCommerce.Platform.Core.Common;
-using VirtoCommerce.Platform.Core.DynamicProperties;
+using VirtoCommerce.Platform.Core.Security;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.StoreModule.Core.Model;
 
@@ -21,14 +20,17 @@ namespace Zoop.Web.Managers
 {
     public class ZoopMethodBoleto : PaymentMethod
     {
-        public ZoopMethodBoleto(IOptions<ZoopSecureOptions> options, IMemberService pMemberService) : base(nameof(ZoopMethodBoleto))
+        public ZoopMethodBoleto(IOptions<ZoopSecureOptions> options, IMemberService pMemberService, UserManager<ApplicationUser> pUserManager) : base(nameof(ZoopMethodBoleto))
         {
             _options = options?.Value ?? new ZoopSecureOptions();
             _memberService = pMemberService;
+            _userManager = pUserManager;
         }
 
         private readonly ZoopSecureOptions _options;
         private readonly IMemberService _memberService;
+        private readonly UserManager<ApplicationUser> _userManager;
+
 
         public override PaymentMethodType PaymentMethodType => PaymentMethodType.Unknown;
 
@@ -38,8 +40,8 @@ namespace Zoop.Web.Managers
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.DefaultSaller.Name,
-                    ModuleConstants.Settings.Zoop.DefaultSaller.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.DefaultSaller.Name,
+                    ModuleConstants.Settings.ZoopBoleto.DefaultSaller.DefaultValue.ToString());
             }
         }
 
@@ -47,8 +49,8 @@ namespace Zoop.Web.Managers
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.VCmanagerURL.Name,
-                    ModuleConstants.Settings.Zoop.VCmanagerURL.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.VCmanagerURL.Name,
+                    ModuleConstants.Settings.ZoopBoleto.VCmanagerURL.DefaultValue.ToString());
             }
         }
 
@@ -56,55 +58,110 @@ namespace Zoop.Web.Managers
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnWaitingConfirm.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnWaitingConfirm.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.statusOrderOnWaitingConfirm.Name,
+                    ModuleConstants.Settings.ZoopBoleto.statusOrderOnWaitingConfirm.DefaultValue.ToString());
             }
         }
 
-        private string statusOrderOnAuthorization
+        private string statusOrderOverdue
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnAuthorization.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.statusOrderOnOverdue.Name,
+                    ModuleConstants.Settings.ZoopBoleto.statusOrderOnOverdue.DefaultValue.ToString());
             }
         }
 
-        private string statusOrderOnFailedAuthorization
+        private string statusOrderOnPaid
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnFailedAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnFailedAuthorization.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.statusOrderOnPaid.Name,
+                    ModuleConstants.Settings.ZoopBoleto.statusOrderOnPaid.DefaultValue.ToString());
             }
         }
 
-        private string statusOrderOnPreAuthorization
+        private string Interest_Mode
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnPreAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnPreAuthorization.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.interestMode.Name,
+                   ModuleConstants.Settings.ZoopBoleto.interestMode.DefaultValue.ToString());
             }
         }
 
-        private string statusOrderOnFailedPreAuthorization
+        private decimal Interest_Amount
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnFailedPreAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnFailedPreAuthorization.DefaultValue.ToString());
+                return Convert.ToDecimal(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.interestAmount.Name,
+                   ModuleConstants.Settings.ZoopBoleto.interestAmount.DefaultValue));
             }
         }
 
-        private string statusOrderOnCancelAuthorization
+        private string LateFee_Mode
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnCancelAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnCancelAuthorization.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.lateFeeMode.Name,
+                   ModuleConstants.Settings.ZoopBoleto.lateFeeMode.DefaultValue.ToString());
             }
         }
+
+        private decimal LateFee_Amount
+        {
+            get
+            {
+                return Convert.ToDecimal(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.lateFeeAmount.Name,
+                   ModuleConstants.Settings.ZoopBoleto.lateFeeAmount.DefaultValue));
+            }
+        }
+
+        private int ExpirationInDays
+        {
+            get
+            {
+                return Convert.ToInt32(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.ExpirationInDays.Name,
+                   ModuleConstants.Settings.ZoopBoleto.ExpirationInDays.DefaultValue));
+            }
+        }
+
+        private int PaymentLimitInDays
+        {
+            get
+            {
+                return Convert.ToInt32(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.PaymentLimitInDays.Name,
+                   ModuleConstants.Settings.ZoopBoleto.PaymentLimitInDays.DefaultValue));
+            }
+        }
+
+        private string Description
+        {
+            get
+            {
+                return Convert.ToString(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.Description.Name,
+                   ModuleConstants.Settings.ZoopBoleto.Description.DefaultValue));
+            }
+        }
+
+        private string UrlLogo
+        {
+            get
+            {
+                return Convert.ToString(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.UrlLogo.Name,
+                   ModuleConstants.Settings.ZoopBoleto.UrlLogo.DefaultValue));
+            }
+        }
+
+        private string BodyInstructions
+        {
+            get
+            {
+                return Convert.ToString(Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.BodyInstructions.Name,
+                   ModuleConstants.Settings.ZoopBoleto.BodyInstructions.DefaultValue));
+            }
+        }
+
 
         public override ProcessPaymentRequestResult ProcessPayment(ProcessPaymentRequest request)
         {
@@ -128,18 +185,18 @@ namespace Zoop.Web.Managers
 
             try
             {
-                zoopService.registerWebHook(VCmanagerURL);
+                Task.Run(() => zoopService.registerWebHook(VCmanagerURL));
+                var customer = GetCustomerAsync(order.CustomerId).GetAwaiter().GetResult();
 
-                ModelApi.BuyerOut buyerOut = SenderBuyer(order, zoopService, request.Parameters);
+                ModelApi.BuyerOut buyerOut = SenderBuyer(zoopService, order, customer as Contact);
                 if (buyerOut.error != null && buyerOut.error.status_code != 0)
                 {
                     retVal.IsSuccess = false;
-                    retVal.ErrorMessage = buyerOut.error.message_display;
+                    retVal.ErrorMessage = buyerOut.error.message_display == null ? buyerOut.error.message : buyerOut.error.message_display;
                     return retVal;
                 }
 
-                ModelApi.TransactionOut transation = SenderTransactionBoleto(payment, order, zoopService, buyerOut);
-                zoopService.SendMailBoletoTansation(transation.Id);
+                ModelApi.TransactionBoletoOut transation = SenderTransactionBoleto(zoopService, payment, order, buyerOut);
                 ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                 payment.Status = PaymentStatus.Pending.ToString();
                 retVal.OuterId = payment.OuterId = transation.Id;
@@ -148,10 +205,11 @@ namespace Zoop.Web.Managers
                 if (transation.error != null && transation.error.status_code != 0)
                 {
                     retVal.IsSuccess = false;
-                    retVal.ErrorMessage = transation.error.message_display;
+                    retVal.ErrorMessage = transation.error.message_display == null ? transation.error.message : transation.error.message_display;
                 }
                 else
                 {
+                    Task.Run(() => zoopService.SendMailBoletoTansation(transation.paymentMethod.Id));
                     retVal.IsSuccess = true;
                 }
                 return retVal;
@@ -167,64 +225,112 @@ namespace Zoop.Web.Managers
             return retVal;
         }
 
-        private ModelApi.TransactionOut SenderTransactionBoleto(PaymentIn payment, CustomerOrder order, ZoopService zoopService, ModelApi.BuyerOut buyerOut)
+        async Task<Member> GetCustomerAsync(string customerId)
+        {
+            // Try to find contact
+            var result = await _memberService.GetByIdAsync(customerId);
+
+            if (result == null)
+            {
+                var user = await _userManager.FindByIdAsync(customerId);
+
+                if (user != null)
+                {
+                    result = await _memberService.GetByIdAsync(user.MemberId);
+                }
+            }
+
+            return result;
+        }
+
+        private ModelApi.TransactionBoletoOut SenderTransactionBoleto(ZoopService zoopService, PaymentIn payment, CustomerOrder order, ModelApi.BuyerOut buyerOut)
         {
             var transactionInput = new ModelApi.TransactionBoletoIn
             {
+                UrlLogo = (string.IsNullOrEmpty(UrlLogo) ? null : UrlLogo),
                 ReferenceId = order.Id,
                 Currency = order.Currency,
-                Description = "Vende", // configuração
+                Description = Description,
                 OnBehalfOf = defaultSaller,
                 Customer = buyerOut.Id,
                 Amount = Convert.ToInt32(payment.Sum * 100),
                 paymentMethod = new ModelApi.TransactionBoletoIn.PaymentMethod()
                 {
                     BodyInstructions = new List<string>() {
-                        "Pedido #" + order.Number, // configuração
+                        BodyInstructions.Replace("#order.Number",order.Number), // configuração
                     },
-                    /*ExpirationDate = "",
-                    PaymentLimitDate = "",*/
-                    BillingInstructions = new ModelApi.TransactionBoletoIn.BillingInstructions()
-                    {
-                        Interest = new ModelApi.TransactionBoletoIn.Interest()
-                        {
-                            Amount = 0,           // configuração
-                            Mode = "DAILY_AMOUNT" // configuração
-                        },
-                        /*Discount = new List<ModelApi.TransactionBoletoIn.Discount>() { 
-                            new ModelApi.TransactionBoletoIn.Discount() { 
-                                Amount = 0,         // configuração
-                                LimitDate = "" ,    // configuração
-                                Mode = ""           // configuração
-                            }
-                        },*/
-                        LateFee = new ModelApi.TransactionBoletoIn.LateFee()
-                        {
-                            Amount = 0,             // configuração
-                            Mode = "FIXED"          // configuração
-                        }
-                    }
+                    ExpirationDate = DateTime.Today.AddDays(ExpirationInDays),  // configuração
+                    PaymentLimitDate = DateTime.Today.AddDays(PaymentLimitInDays), // configuração
                 }
             };
+
+            if (LateFee_Amount > 0 || Interest_Amount > 0)
+            {
+                ModelApi.TransactionBoletoIn.LateFee lateFee = null;
+                ModelApi.TransactionBoletoIn.Interest lnterest = null;
+                if (LateFee_Amount > 0)
+                {
+                    lateFee = new ModelApi.TransactionBoletoIn.LateFee()
+                    {
+                        Mode = LateFee_Mode
+                    };
+                    if (LateFee_Mode == "FIXED")
+                        lateFee.Amount = Convert.ToInt32(LateFee_Amount * 100);
+                    if (LateFee_Mode == "PERCENTAGE")
+                        lateFee.Percentage = Convert.ToInt32(LateFee_Amount * 100);
+                }
+
+                if (Interest_Amount > 0)
+                {
+                    lnterest = new ModelApi.TransactionBoletoIn.Interest()
+                    {
+                        Mode = Interest_Mode
+                    };
+                    if (Interest_Mode == "DAILY_AMOUNT")
+                        lnterest.Amount = Convert.ToInt32(Interest_Amount * 100);
+                    if (Interest_Mode == "DAILY_PERCENTAGE" || Interest_Mode == "MONTHLY_PERCENTAGE")
+                        lnterest.Percentage = Convert.ToInt32(Interest_Amount * 100);
+                }
+
+                /*Discount = new List<ModelApi.TransactionBoletoIn.Discount>() { 
+                    new ModelApi.TransactionBoletoIn.Discount() { 
+                        Amount = 0,         // configuração
+                        LimitDate = "" ,    // configuração
+                        Mode = ""           // configuração
+                    }
+                },*/
+
+                transactionInput.paymentMethod.BillingInstructions = new ModelApi.TransactionBoletoIn.BillingInstructions() { Interest = lnterest, LateFee = lateFee };
+            }
 
             var transation = zoopService.NewBoletoTansation(transactionInput);
             return transation;
         }
 
-        private static ModelApi.BuyerOut SenderBuyer(CustomerOrder order, ZoopService zoopService, NameValueCollection pParam)
+        private static ModelApi.BuyerOut SenderBuyer(ZoopService zoopService, CustomerOrder order, Contact pCustomer)
         {
+
+            string taxpayerIdValue = pCustomer.TaxPayerId;
+            if (string.IsNullOrEmpty(taxpayerIdValue))
+            {
+                throw new InvalidOperationException($"'TaxpayerId' should not be null and of \"{nameof(Contact)}\" type.");
+            }
+
+
             var address = order.Shipments.FirstOrDefault().DeliveryAddress;
+
             var buyer = new ModelApi.BuyerIn
             {
+                Birthdate = pCustomer?.BirthDate,
                 FirstName = address.FirstName,
                 LastName = address.LastName,
-                TaxpayerId = pParam != null ? pParam["TaxpayerId"] : null, // TODO: FALTA CPF
+                TaxpayerId = taxpayerIdValue,
                 Email = address.Email,
                 PhoneNumber = address.Phone,
                 address = new ModelApi.BuyerIn.Address()
                 {
                     City = address.City,
-                    CountryCode = address.CountryCode,
+                    CountryCode = CountryCode.ConvertThreeCodeToTwoCode(address.CountryCode),
                     Line1 = address.Line1,
                     Line2 = address.Line2,
                     Neighborhood = address.RegionName,
@@ -237,6 +343,18 @@ namespace Zoop.Web.Managers
             return buyerOut;
         }
 
+        private static object GetProperty(Member pCustomer, string pName)
+        {
+            if (pCustomer.DynamicProperties.Count == 0)
+                return null;
+
+            var propTaxpayerId = pCustomer.DynamicProperties.FirstOrDefault(p => p.Name == pName);
+            object taxpayerIdValue = null;
+            if (propTaxpayerId != null && propTaxpayerId.Values.Count > 0)
+                taxpayerIdValue = propTaxpayerId.Values.FirstOrDefault().Value;
+            return taxpayerIdValue;
+        }
+
         private void ApplyOrderStatus(CustomerOrder order, string pNewStatusOrder)
         {
             if (!string.IsNullOrEmpty(pNewStatusOrder))
@@ -245,43 +363,8 @@ namespace Zoop.Web.Managers
 
         public override CapturePaymentRequestResult CaptureProcessPayment(CapturePaymentRequest context)
         {
-
-            var payment = context.Payment as PaymentIn ?? throw new InvalidOperationException($"\"{nameof(context.Payment)}\" should not be null and of \"{nameof(PaymentIn)}\" type.");
-
-
-            var input = new ModelApi.VoidCaptureTransactionIn
-            {
-                Amount = Convert.ToInt32(payment.Sum * 100),
-                OnBehalfOf = defaultSaller
-            };
-
             var retVal = AbstractTypeFactory<CapturePaymentRequestResult>.TryCreateInstance();
-
-            ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-            try
-            {
-                ModelApi.TransactionOut transation = zoopService.CaptureCardTansacton(payment.OuterId, input);
-
-
-                if (transation.error != null && transation.error.status_code != 0)
-                {
-                    retVal.ErrorMessage = transation.error.message;
-                    retVal.NewPaymentStatus = PaymentStatus.Error;
-                    retVal.IsSuccess = false;
-                }
-                else
-                {
-                    payment.CapturedDate = DateTime.UtcNow;
-                    retVal.IsSuccess = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                retVal.ErrorMessage = ex.Message;
-                retVal.NewPaymentStatus = PaymentStatus.Error;
-                retVal.IsSuccess = false;
-            }
-
+            retVal.IsSuccess = true;
             return retVal;
         }
 
@@ -334,65 +417,32 @@ namespace Zoop.Web.Managers
                     ResponseData = JsonConvert.SerializeObject(history)
                 });
 
-                if (history.OperationType == "authorization" && history.Status == "succeeded")
+                if (history.OperationType == "invoice.paid" && history.Status == "succeeded")
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
                     result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnAuthorization);
+                    ApplyOrderStatus(order, statusOrderOnPaid);
                     payment.Status = PaymentStatus.Paid.ToString();
                     payment.CapturedDate = DateTime.UtcNow;
                     payment.IsApproved = true;
                     payment.Comment = $"Paid successfully. Transaction Info {history.Id}, authorization code: {history.AuthorizationCode}{Environment.NewLine}";
                     payment.AuthorizedDate = DateTime.UtcNow;
                 }
-                else if (history.OperationType == "authorization" && history.Status == "failed")
+                else if (transation.Status == "invoice.overdue" && history.Status == "succeeded")
                 {
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
                     result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnFailedAuthorization);
+                    ApplyOrderStatus(order, statusOrderOverdue);
                     payment.Status = PaymentStatus.Voided.ToString();
                     payment.VoidedDate = DateTime.UtcNow;
                     payment.IsCancelled = true;
                 }
-                else if (history.OperationType == "pre_authorization" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Authorized;
-                    result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnPreAuthorization);
-                    payment.Status = PaymentStatus.Authorized.ToString();
-                    payment.AuthorizedDate = DateTime.UtcNow;
-                }
-                else if (history.OperationType == "pre_authorization" && history.Status == "failed")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
-                    result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnFailedPreAuthorization);
-                    payment.Status = PaymentStatus.Voided.ToString();
-                    payment.VoidedDate = DateTime.UtcNow;
-                    payment.IsCancelled = true;
-                }
-                else if (transation.Status == "canceled" && history.OperationType == "void" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Cancelled;
-                    result.IsSuccess = true;
 
-                    if (!order.IsCancelled)
-                        ApplyOrderStatus(order, statusOrderOnCancelAuthorization);
-
-                    payment.Status = PaymentStatus.Cancelled.ToString();
-                    payment.CancelledDate = DateTime.UtcNow;
-                    payment.IsCancelled = true;
-                }
-                // TODO: FALTA TESTAR!! Incluir na jorndar de homologação
-                else if (transation.Status == "charged_back" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Refunded;
-                    result.IsSuccess = true;
-
-                    payment.Status = PaymentStatus.Refunded.ToString();
-                    payment.CancelledDate = DateTime.UtcNow;
-                    payment.IsCancelled = true;
-                }
+                //"invoice.created",
+                //"invoice.overdue",
+                //"invoice.paid",
+                // TODO: FALTA testar Refunded
+                //"invoice.refunded",
             }
             return result;
         }

@@ -55,11 +55,11 @@ namespace Zoop.ModelApi
         [JsonProperty("resource")]
         public string Resource { get; set; }
 
-        [JsonProperty("account_balance")]
-        public int AccountBalance { get; set; }
+        //[JsonProperty("account_balance")]
+        //public decimal AccountBalance { get; set; }
 
-        [JsonProperty("current_balance")]
-        public int CurrentBalance { get; set; }
+        //[JsonProperty("current_balance")]
+        //public decimal CurrentBalance { get; set; }
 
         [JsonProperty("first_name")]
         public string FirstName { get; set; }
@@ -77,7 +77,7 @@ namespace Zoop.ModelApi
         public string TaxpayerId { get; set; }
 
         [JsonProperty("birthdate")]
-        public string Birthdate { get; set; }
+        public DateTime? Birthdate { get; set; }
 
         [JsonProperty("description")]
         public string Description { get; set; }
@@ -85,8 +85,8 @@ namespace Zoop.ModelApi
         [JsonProperty("address")]
         public Address address { get; set; }
 
-        [JsonProperty("delinquent")]
-        public bool Delinquent { get; set; }
+        //[JsonProperty("delinquent")]
+        //public bool Delinquent { get; set; }
 
         [JsonProperty("default_debit")]
         public string DefaultDebit { get; set; }
@@ -97,11 +97,11 @@ namespace Zoop.ModelApi
         [JsonProperty("metadata")]
         public Metadata metadata { get; set; }
 
-        [JsonProperty("created_at")]
-        public string CreatedAt { get; set; }
+        //[JsonProperty("created_at")]
+        //public string CreatedAt { get; set; }
 
-        [JsonProperty("updated_at")]
-        public string UpdatedAt { get; set; }
+        //[JsonProperty("updated_at")]
+        //public string UpdatedAt { get; set; }
     }
 
     public class BuyerOut: Generic
@@ -154,10 +154,10 @@ namespace Zoop.ModelApi
         public string Resource { get; set; }
 
         [JsonProperty("account_balance")]
-        public int AccountBalance { get; set; }
+        public decimal AccountBalance { get; set; }
 
         [JsonProperty("current_balance")]
-        public int CurrentBalance { get; set; }
+        public decimal CurrentBalance { get; set; }
 
         [JsonProperty("first_name")]
         public string FirstName { get; set; }
@@ -196,9 +196,9 @@ namespace Zoop.ModelApi
         public Metadata metadata { get; set; }
 
         [JsonProperty("created_at")]
-        public string CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         [JsonProperty("updated_at")]
-        public string UpdatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
     }
 }

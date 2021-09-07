@@ -8,6 +8,9 @@ using VirtoCommerce.Platform.Core.Modularity;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.Zoop.Web.Services;
 using VirtoCommerce.CustomerModule.Core.Services;
+using VirtoCommerce.Platform.Core.DynamicProperties;
+using Microsoft.AspNetCore.Identity;
+using VirtoCommerce.Platform.Core.Security;
 
 namespace Zoop.Web
 {
@@ -29,14 +32,17 @@ namespace Zoop.Web
             // register settings
             var settingsRegistrar = appBuilder.ApplicationServices.GetRequiredService<ISettingsRegistrar>();
             settingsRegistrar.RegisterSettings(ModuleConstants.Settings.AllSettings, ModuleInfo.Id);
-            settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.Zoop.Settings, nameof(ZoopMethod));
+            settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.Zoop.Settings, nameof(ZoopMethodCard));
             settingsRegistrar.RegisterSettingsForType(ModuleConstants.Settings.ZoopBoleto.Settings, nameof(ZoopMethodBoleto));
 
             var ZoopOptions = appBuilder.ApplicationServices.GetRequiredService<IOptions<ZoopSecureOptions>>();
             var paymentMethodsRegistrar = appBuilder.ApplicationServices.GetRequiredService<IPaymentMethodsRegistrar>();
             var customer = appBuilder.ApplicationServices.GetRequiredService<IMemberService>();
-            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethod(ZoopOptions));
-            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, customer));
+            var dynamicPropertySearchService = appBuilder.ApplicationServices.GetRequiredService<IDynamicPropertySearchService>();
+            var userManagerService = appBuilder.ApplicationServices.GetRequiredService<UserManager<ApplicationUser>>();
+            
+            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodCard(ZoopOptions, dynamicPropertySearchService));
+            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, customer, userManagerService));
         }
 
         public void Uninstall()

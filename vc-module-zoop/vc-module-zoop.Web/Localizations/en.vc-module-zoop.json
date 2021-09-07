@@ -8,7 +8,7 @@
   },
   "payment": {
     "labels": {
-      "ZoopMethod": {
+      "ZoopMethodCard": {
         "name": "Zoop payment gateway - Card",
         "description": "Zoop payment gateway integration"
       },

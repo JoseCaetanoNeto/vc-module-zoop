@@ -61,7 +61,7 @@ namespace Zoop.ModelApi
         public class Fees
         {
             [JsonProperty("total")]
-            public string Total { get; set; }
+            public decimal Total { get; set; }
 
             [JsonProperty("uri")]
             public string Uri { get; set; }

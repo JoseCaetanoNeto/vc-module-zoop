@@ -15,7 +15,7 @@ namespace Zoop.Web
         const string C_WebHookEndPoid = "{urlbase}/v1/marketplaces/{marketplace_id}/webhooks";
         const string C_VoidTransactionCard = "{urlbase}/v2/marketplaces/{marketplace_id}/transactions/{transaction_id}/void";
         const string C_WebHook = "/api/payments/zoopwebhook/registerpayment";
-        const string C_EnviarBoleto = "{urlbase}/v1/marketplaces/marketplace_id/boletos/{transaction_id}/emails";
+        const string C_EnviarBoleto = "{urlbase}/v1/marketplaces/{marketplace_id}/boletos/{transaction_id}/emails";
         const string C_NewTansationBoletoEndPoint = "{urlbase}/v1/marketplaces/{marketplace_id}/transactions";
         const string C_NewBuyer = "{urlbase}/v1/marketplaces/{marketplace_id}/buyers";
         const string C_UpdateBuyer = "{urlbase}/v1/marketplaces/{marketplace_id}/buyers/";
@@ -24,6 +24,23 @@ namespace Zoop.Web
         readonly string m_Marketplace_id;
         readonly string m_applycation_id;
 
+        public static readonly List<string> s_needEvents = new List<string> {
+                "invoice.created",
+                "invoice.overdue",
+                "invoice.paid",
+                "invoice.refunded",
+                "transaction.pre_authorization.succeeded",
+                "transaction.pre_authorized",
+                "transaction.canceled",
+                "transaction.charged_back",
+                "transaction.commission.succeeded",
+                "transaction.dispute.succeeded",
+                "transaction.disputed",
+                "transaction.failed",
+                "transaction.reversed",
+                "transaction.succeeded",
+                "transaction.updated"
+            };
 
         public ZoopService(string pMarketplace_id, string pApplycation_id)
         {
@@ -47,10 +64,10 @@ namespace Zoop.Web
             return ConexoesApi.EfetuarChamadaApi<ModelApi.TransactionOut>(BuildUrl(C_VoidTransactionCard, pTransactionId), GetBasicAut(), "POST", input);
         }
 
-        public ModelApi.TransactionOut NewBoletoTansation(ModelApi.TransactionBoletoIn pTransactionIn)
+        public ModelApi.TransactionBoletoOut NewBoletoTansation(ModelApi.TransactionBoletoIn pTransactionIn)
         {
             pTransactionIn.PaymentType = "boleto";
-            var transation = ConexoesApi.EfetuarChamadaApi<ModelApi.TransactionOut>(BuildUrl(C_NewTansationBoletoEndPoint), GetBasicAut(), "POST", pTransactionIn);
+            var transation = ConexoesApi.EfetuarChamadaApi<ModelApi.TransactionBoletoOut>(BuildUrl(C_NewTansationBoletoEndPoint), GetBasicAut(), "POST", pTransactionIn);
             return transation;
         }
 
@@ -83,23 +100,7 @@ namespace Zoop.Web
 
             string url = pURL + C_WebHook;
 
-            var needEvents = new List<string> {
-                "invoice.created",
-                "invoice.overdue",
-                "invoice.paid",
-                "invoice.refunded",
-                "transaction.pre_authorization.succeeded",
-                "transaction.pre_authorized",
-                "transaction.canceled",
-                "transaction.charged_back",
-                "transaction.commission.succeeded",
-                "transaction.dispute.succeeded",
-                "transaction.disputed",
-                "transaction.failed",
-                "transaction.reversed",
-                "transaction.succeeded",
-                "transaction.updated"
-            };
+            
 
             var list = ConexoesApi.EfetuarChamadaApi<ModelApi.ListWebHookOut>(BuildUrl(C_WebHookEndPoid), GetBasicAut(), "GET", null);
             bool found = false;
@@ -108,9 +109,9 @@ namespace Zoop.Web
                 if (item.Url == url)
                 {
                     found = true;
-                    for (int i = 0; i < needEvents.Count; i++)
+                    for (int i = 0; i < s_needEvents.Count; i++)
                     {
-                        if (!item.Events.Contains(needEvents[i]))
+                        if (!item.Events.Contains(s_needEvents[i]))
                         {
                             ConexoesApi.EfetuarChamadaApi<ModelApi.Generic>(BuildUrl(C_WebHookEndPoid) + "/" + item.Id, GetBasicAut(), "DELETE", null);
                             found = false;
@@ -122,7 +123,7 @@ namespace Zoop.Web
             }
             if (!found)
             {
-                var input = new ModelApi.CreateWebHookIn() { Method = "POST", Url = url, Description = "WebhookPagamentos", Event = needEvents };
+                var input = new ModelApi.CreateWebHookIn() { Method = "POST", Url = url, Description = "WebhookPagamentos", Event = s_needEvents };
                 ConexoesApi.EfetuarChamadaApi<ModelApi.CreateWebHookOut>(BuildUrl(C_WebHookEndPoid), GetBasicAut(), "POST", input);
             }
         }
