@@ -25,10 +25,10 @@ namespace Zoop.Web
         readonly string m_applycation_id;
 
         public static readonly List<string> s_needEvents = new List<string> {
-                "invoice.created",
-                "invoice.overdue",
-                "invoice.paid",
-                "invoice.refunded",
+                //"invoice.created",
+                //"invoice.overdue",
+                //"invoice.paid",
+                //"invoice.refunded",
                 "transaction.pre_authorization.succeeded",
                 "transaction.pre_authorized",
                 "transaction.canceled",
@@ -39,7 +39,8 @@ namespace Zoop.Web
                 "transaction.failed",
                 "transaction.reversed",
                 "transaction.succeeded",
-                "transaction.updated"
+                "transaction.updated",
+                "transaction.created"
             };
 
         public ZoopService(string pMarketplace_id, string pApplycation_id)
