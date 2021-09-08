@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 
@@ -8,10 +9,8 @@ namespace Zoop.ModelApi
     {
         public class Payload
         {
-            public TransactionOut @object { get; set; }
+            public JObject @object { get; set; }
         }
-
-
         public string id { get; set; }
         public string type { get; set; }
         public string resource { get; set; }
@@ -24,7 +23,7 @@ namespace Zoop.ModelApi
         public DateTime CreatedAt { get; set; }
 
         [JsonProperty("updated_at")]
-        public DateTime UpdatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
     }
 

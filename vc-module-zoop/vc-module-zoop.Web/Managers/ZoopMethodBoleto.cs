@@ -12,6 +12,7 @@ using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.PaymentModule.Model.Requests;
 using VirtoCommerce.Platform.Core.Common;
+using VirtoCommerce.Platform.Core.DynamicProperties;
 using VirtoCommerce.Platform.Core.Security;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.StoreModule.Core.Model;
@@ -20,17 +21,18 @@ namespace Zoop.Web.Managers
 {
     public class ZoopMethodBoleto : PaymentMethod
     {
-        public ZoopMethodBoleto(IOptions<ZoopSecureOptions> options, IMemberService pMemberService, UserManager<ApplicationUser> pUserManager) : base(nameof(ZoopMethodBoleto))
+        public ZoopMethodBoleto(IOptions<ZoopSecureOptions> options, IDynamicPropertySearchService dynamicPropertySearchService, IMemberService pMemberService, UserManager<ApplicationUser> pUserManager) : base(nameof(ZoopMethodBoleto))
         {
             _options = options?.Value ?? new ZoopSecureOptions();
             _memberService = pMemberService;
             _userManager = pUserManager;
+            _dynamicPropertySearchService = dynamicPropertySearchService;
         }
 
         private readonly ZoopSecureOptions _options;
         private readonly IMemberService _memberService;
         private readonly UserManager<ApplicationUser> _userManager;
-
+        private readonly IDynamicPropertySearchService _dynamicPropertySearchService;
 
         public override PaymentMethodType PaymentMethodType => PaymentMethodType.Unknown;
 
@@ -162,7 +164,6 @@ namespace Zoop.Web.Managers
             }
         }
 
-
         public override ProcessPaymentRequestResult ProcessPayment(ProcessPaymentRequest request)
         {
 
@@ -197,6 +198,7 @@ namespace Zoop.Web.Managers
                 }
 
                 ModelApi.TransactionBoletoOut transation = SenderTransactionBoleto(zoopService, payment, order, buyerOut);
+                
                 ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                 payment.Status = PaymentStatus.Pending.ToString();
                 retVal.OuterId = payment.OuterId = transation.Id;
@@ -209,6 +211,11 @@ namespace Zoop.Web.Managers
                 }
                 else
                 {
+                    IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
+                    resultSearch.SetDynamicProp(payment, "zoop_fee_brazil", transation.Fees);
+                    resultSearch.SetDynamicProp(payment, "urlBoleto", transation.paymentMethod.Url);
+                    resultSearch.SetDynamicProp(payment, "expiration_date", transation.paymentMethod.ExpirationDate);
+                    
                     Task.Run(() => zoopService.SendMailBoletoTansation(transation.paymentMethod.Id));
                     retVal.IsSuccess = true;
                 }
@@ -222,6 +229,111 @@ namespace Zoop.Web.Managers
                 retVal.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
             }
 
+            return retVal;
+        }
+
+        public override CapturePaymentRequestResult CaptureProcessPayment(CapturePaymentRequest context)
+        {
+            var retVal = AbstractTypeFactory<CapturePaymentRequestResult>.TryCreateInstance();
+            retVal.IsSuccess = true;
+            return retVal;
+        }
+
+        public override PostProcessPaymentRequestResult PostProcessPayment(PostProcessPaymentRequest request)
+        {
+            var result = AbstractTypeFactory<PostProcessPaymentRequestResult>.TryCreateInstance();
+
+            var payment = request.Payment as PaymentIn ?? throw new InvalidOperationException($"\"{nameof(request.Payment)}\" should not be null and of \"{nameof(PaymentIn)}\" type.");
+            var order = request.Order as CustomerOrder ?? throw new InvalidOperationException($"\"{nameof(request.Order)}\" should not be null and of \"{nameof(CustomerOrder)}\" type.");
+#pragma warning disable S1481 // Unused local variables should be removed
+            // Need to check shop existence, though not using it
+            var store = request.Store as Store ?? throw new InvalidOperationException($"\"{nameof(request.Store)}\" should not be null and of \"{nameof(Store)}\" type.");
+#pragma warning restore S1481 // Unused local variables should be removed
+
+            var transation = JsonConvert.DeserializeObject<ModelApi.TransactionBoletoOut>(request.Parameters["x_TransactionOut"]);
+            var CreatedDate = DateTime.MinValue;
+
+            if (payment.Transactions.Count > 0)
+                CreatedDate = payment.Transactions.Max(o => o.CreatedDate);
+
+            var historys = transation.history.Where(o => o.CreatedAt > CreatedDate).ToList();
+            foreach (var history in historys)
+            {
+                //"id": "a062501fd2a04dc89bf2bb713573f8b5",
+                //"transaction": "3bb1395b453e49a29521f45b1dcaad2a",
+                //"authorizer": null,
+                //"authorizer_id": null,
+                //"amount": "172.09",
+                //"operation_type": "paid",
+                //"status": "succeeded",
+                //"response_code": null,
+                //"authorization_code": null,
+                //"authorization_nsu": null,
+                //"gatewayResponseTime": null,
+                //"response_message": null,
+                //"created_at": "2021-09-08 01:05:52"
+
+                payment.Transactions.Add(new PaymentGatewayTransaction()
+                {
+                    Note = $"Transaction Info {history.Id}",
+                    Status = history.OperationType,
+                    ResponseCode = history.Status,
+                    CurrencyCode = payment.Currency.ToString(),
+                    Amount = history.Amount,
+                    IsProcessed = true,
+                    ProcessedDate = DateTime.UtcNow,
+                    CreatedDate = history.CreatedAt,
+                    ResponseData = JsonConvert.SerializeObject(history, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore })
+                });
+
+                if (history.OperationType == "paid" && history.Status == "succeeded")
+                {
+                    result.IsSuccess = true;
+                    // não tem campo para incluir os pagamentos parciais
+                    decimal payAmount = payment.Transactions.Where(t => t.Status == "paid").Sum(i => i.Amount);
+                    if (payAmount >= payment.Sum)
+                    {
+                        result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
+                        ApplyOrderStatus(order, statusOrderOnPaid);
+                        payment.Status = PaymentStatus.Paid.ToString();
+                        payment.CapturedDate = DateTime.UtcNow;
+                        payment.IsApproved = true;
+                        payment.Comment = $"Paid successfully. Transaction Info {history.Id}{Environment.NewLine}";
+                        payment.AuthorizedDate = DateTime.UtcNow;
+                    }
+                }
+                // TODO: falta ver como vem evento de boleto vencido
+                else if (transation.Status == "invoice.overdue" && history.Status == "succeeded")
+                {
+                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
+                    result.IsSuccess = true;
+                    ApplyOrderStatus(order, statusOrderOverdue);
+                    payment.Status = PaymentStatus.Voided.ToString();
+                    payment.VoidedDate = DateTime.UtcNow;
+                    payment.IsCancelled = true;
+                }
+            }
+            return result;
+        }
+
+        public override RefundPaymentRequestResult RefundProcessPayment(RefundPaymentRequest context)
+        {
+            var retVal = AbstractTypeFactory<RefundPaymentRequestResult>.TryCreateInstance();
+            retVal.IsSuccess = true;
+            return retVal;
+        }
+
+        public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)
+        {
+            var retVal = AbstractTypeFactory<ValidatePostProcessRequestResult>.TryCreateInstance();
+            retVal.IsSuccess = true;
+            return retVal;
+        }
+
+        public override VoidPaymentRequestResult VoidProcessPayment(VoidPaymentRequest context)
+        {
+            var retVal = AbstractTypeFactory<VoidPaymentRequestResult>.TryCreateInstance();
+            retVal.IsSuccess = true;
             return retVal;
         }
 
@@ -360,185 +472,5 @@ namespace Zoop.Web.Managers
             if (!string.IsNullOrEmpty(pNewStatusOrder))
                 order.Status = pNewStatusOrder;
         }
-
-        public override CapturePaymentRequestResult CaptureProcessPayment(CapturePaymentRequest context)
-        {
-            var retVal = AbstractTypeFactory<CapturePaymentRequestResult>.TryCreateInstance();
-            retVal.IsSuccess = true;
-            return retVal;
-        }
-
-        public override PostProcessPaymentRequestResult PostProcessPayment(PostProcessPaymentRequest request)
-        {
-            var result = AbstractTypeFactory<PostProcessPaymentRequestResult>.TryCreateInstance();
-
-            var payment = request.Payment as PaymentIn ?? throw new InvalidOperationException($"\"{nameof(request.Payment)}\" should not be null and of \"{nameof(PaymentIn)}\" type.");
-            var order = request.Order as CustomerOrder ?? throw new InvalidOperationException($"\"{nameof(request.Order)}\" should not be null and of \"{nameof(CustomerOrder)}\" type.");
-#pragma warning disable S1481 // Unused local variables should be removed
-            // Need to check shop existence, though not using it
-            var store = request.Store as Store ?? throw new InvalidOperationException($"\"{nameof(request.Store)}\" should not be null and of \"{nameof(Store)}\" type.");
-#pragma warning restore S1481 // Unused local variables should be removed
-
-            var transation = JsonConvert.DeserializeObject<ModelApi.TransactionOut>(request.Parameters["x_TransactionOut"]);
-            var CreatedDate = DateTime.MinValue;
-
-            if (payment.Transactions.Count > 0)
-                CreatedDate = payment.Transactions.Max(o => o.CreatedDate);
-
-            var historys = transation.history.Where(o => o.UpdatedAt > CreatedDate).ToList();
-            foreach (var history in historys)
-            {
-                //"id": "bca7c3d3bc8849afbe6cb533f423b639",
-                //"transaction": "607c1b9d449f43debcd8b266f9eb482a",
-                //"authorizer": "cielo",
-                //"authorizer_id": "000260004",
-                //"amount": "160.00",
-                //"operation_type": "authorization",
-                //"status": "succeeded",
-                //"response_code": "00",
-                //"authorization_code": "133937",
-                //"authorization_nsu": "20180510122911535",
-                //"gatewayResponseTime": "4",
-                //"created_at": "2021-08-24 12:59:55",
-                //"updated_at": "2021-08-24 12:59:55"
-
-
-
-                payment.Transactions.Add(new PaymentGatewayTransaction()
-                {
-                    Note = $"Transaction Info {history.Id}",
-                    Status = history.OperationType,
-                    ResponseCode = history.Status,
-                    CurrencyCode = payment.Currency.ToString(),
-                    Amount = history.Amount,
-                    IsProcessed = true,
-                    ProcessedDate = DateTime.UtcNow,
-                    CreatedDate = history.UpdatedAt.Value,
-                    ResponseData = JsonConvert.SerializeObject(history)
-                });
-
-                if (history.OperationType == "invoice.paid" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
-                    result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnPaid);
-                    payment.Status = PaymentStatus.Paid.ToString();
-                    payment.CapturedDate = DateTime.UtcNow;
-                    payment.IsApproved = true;
-                    payment.Comment = $"Paid successfully. Transaction Info {history.Id}, authorization code: {history.AuthorizationCode}{Environment.NewLine}";
-                    payment.AuthorizedDate = DateTime.UtcNow;
-                }
-                else if (transation.Status == "invoice.overdue" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
-                    result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOverdue);
-                    payment.Status = PaymentStatus.Voided.ToString();
-                    payment.VoidedDate = DateTime.UtcNow;
-                    payment.IsCancelled = true;
-                }
-
-                //"invoice.created",
-                //"invoice.overdue",
-                //"invoice.paid",
-                // TODO: FALTA testar Refunded
-                //"invoice.refunded",
-            }
-            return result;
-        }
-
-        public override RefundPaymentRequestResult RefundProcessPayment(RefundPaymentRequest context)
-        {
-            var payment = context.Payment as PaymentIn ?? throw new InvalidOperationException($"\"{nameof(context.Payment)}\" should not be null and of \"{nameof(PaymentIn)}\" type.");
-
-
-            var input = new ModelApi.VoidCaptureTransactionIn
-            {
-                Amount = Convert.ToInt32(payment.Sum * 100),
-                OnBehalfOf = defaultSaller
-            };
-
-            var retVal = AbstractTypeFactory<RefundPaymentRequestResult>.TryCreateInstance();
-
-            ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-            try
-            {
-                ModelApi.TransactionOut transation = zoopService.VoidCardTansacton(payment.OuterId, input);
-
-
-                if (transation.error != null && transation.error.status_code != 0)
-                {
-                    retVal.ErrorMessage = transation.error.message;
-                    retVal.NewPaymentStatus = PaymentStatus.Error;
-                    retVal.IsSuccess = false;
-                }
-                else
-                {
-                    payment.PaymentStatus = PaymentStatus.Refunded;
-                    payment.IsCancelled = true;
-                    payment.CancelledDate = DateTime.UtcNow;
-                    retVal.IsSuccess = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                retVal.ErrorMessage = ex.Message;
-                retVal.NewPaymentStatus = PaymentStatus.Error;
-                retVal.IsSuccess = false;
-            }
-
-            return retVal;
-        }
-
-        public override ValidatePostProcessRequestResult ValidatePostProcessRequest(NameValueCollection queryString)
-        {
-            var retVal = AbstractTypeFactory<ValidatePostProcessRequestResult>.TryCreateInstance();
-            retVal.IsSuccess = true;
-            return retVal;
-        }
-
-        public override VoidPaymentRequestResult VoidProcessPayment(VoidPaymentRequest context)
-        {
-            var payment = context.Payment as PaymentIn ?? throw new InvalidOperationException($"\"{nameof(context.Payment)}\" should not be null and of \"{nameof(PaymentIn)}\" type.");
-
-
-            var input = new ModelApi.VoidCaptureTransactionIn
-            {
-                Amount = Convert.ToInt32(payment.Sum * 100),
-                OnBehalfOf = defaultSaller
-            };
-
-            var retVal = AbstractTypeFactory<VoidPaymentRequestResult>.TryCreateInstance();
-
-            ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-            try
-            {
-                ModelApi.TransactionOut transation = zoopService.VoidCardTansacton(payment.OuterId, input);
-
-                if (transation.error != null && transation.error.status_code != 0)
-                {
-                    retVal.ErrorMessage = transation.error.message;
-                    retVal.NewPaymentStatus = PaymentStatus.Error;
-                    retVal.IsSuccess = false;
-                }
-                else
-                {
-                    retVal.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
-                    //webhook é quem tem de fazer a volta
-                    //payment.IsCancelled = true;
-                    //payment.VoidedDate = DateTime.UtcNow;
-                    retVal.IsSuccess = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                retVal.ErrorMessage = ex.Message;
-                retVal.NewPaymentStatus = PaymentStatus.Error;
-                retVal.IsSuccess = false;
-            }
-
-            return retVal;
-        }
-
     }
 }

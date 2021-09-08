@@ -37,8 +37,8 @@ namespace VirtoCommerce.Zoop.Web.Services
 
             if (!ZoopService.s_needEvents.Contains(paymentParameters.type))
                 return null;
-            
 
+            string outerId = paymentParameters.payload.@object["id"].ToString();
             string result = null;
             var order = (await _customerOrderService.GetByIdsAsync(new[] { orderId })).FirstOrDefault();
             if (order == null)
@@ -46,7 +46,7 @@ namespace VirtoCommerce.Zoop.Web.Services
                 throw new ArgumentException("Order for specified orderId not found.", "orderId");
             }
 
-            PaymentIn payment = order.InPayments.FirstOrDefault(x => (x.GatewayCode.EqualsInvariant(nameof(ZoopMethodCard)) || x.GatewayCode.EqualsInvariant(nameof(ZoopMethodBoleto))) && x.OuterId == paymentParameters.payload.@object.Id);
+            PaymentIn payment = order.InPayments.FirstOrDefault(x => (x.GatewayCode.EqualsInvariant(nameof(ZoopMethodCard)) || x.GatewayCode.EqualsInvariant(nameof(ZoopMethodBoleto))) && x.OuterId == outerId);
             if (payment == null)
             {
                 return null;
@@ -59,7 +59,7 @@ namespace VirtoCommerce.Zoop.Web.Services
                 Order = order,
                 Payment = payment,
                 Store = store,
-                OuterId = paymentParameters.payload.@object.Id,
+                OuterId = outerId,
                 Parameters = new NameValueCollection() { { "x_TransactionOut", JsonConvert.SerializeObject(paymentParameters.payload.@object) } }
             };
 

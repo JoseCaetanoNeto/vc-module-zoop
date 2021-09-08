@@ -162,7 +162,7 @@ namespace Zoop.Web.Managers
 
             IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
 
-            SetDynamicProp(resultSearch, payment, "numberInstallments", numberInstallments);
+            resultSearch.SetDynamicProp(payment, "numberInstallments", numberInstallments);
 
             var transactionInput = new ModelApi.TransactionIn
             {
@@ -203,8 +203,8 @@ namespace Zoop.Web.Managers
                 }
                 else
                 {
-                    SetDynamicProp(resultSearch, payment, "installment_plan", transation.installmentPlan.Mode);
-                    SetDynamicProp(resultSearch, payment, "zoop_fee_brazil", transation.fees.Total);
+                    resultSearch.SetDynamicProp(payment, "installment_plan", transation.installmentPlan.Mode);
+                    resultSearch.SetDynamicProp(payment, "zoop_fee_brazil", transation.fees.Total);
 
                     ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                     retVal.IsSuccess = true;
@@ -222,21 +222,6 @@ namespace Zoop.Web.Managers
             return retVal;
         }
 
-        private void SetDynamicProp(IList<DynamicProperty> resultSearch, PaymentIn pPayment, string pName, object pValue)
-        {
-            var property = pPayment.DynamicProperties.FirstOrDefault(o => o.Name == pName);
-            if (property == null)
-            {
-                if (pPayment.DynamicProperties.IsReadOnly)
-                    pPayment.DynamicProperties = new List<DynamicObjectProperty>();
-
-                property = new DynamicObjectProperty { Name = pName, ValueType = (pValue is int ? DynamicPropertyValueType.Integer : pValue is decimal ? DynamicPropertyValueType.Decimal : DynamicPropertyValueType.ShortText) };
-                pPayment.DynamicProperties.Add(property);
-            }
-            var prop = resultSearch.FirstOrDefault(o => o.Name == pName);
-            property.Values = new List<DynamicPropertyObjectValue>(new[] { new DynamicPropertyObjectValue { Value = pValue, PropertyId = prop.Id } });
-
-        }
 
         private void ApplyOrderStatus(CustomerOrder order, string pNewStatusOrder)
         {
@@ -332,7 +317,7 @@ namespace Zoop.Web.Managers
                     IsProcessed = true,
                     ProcessedDate = DateTime.UtcNow,
                     CreatedDate = history.UpdatedAt.Value,
-                    ResponseData = JsonConvert.SerializeObject(history)
+                    ResponseData = JsonConvert.SerializeObject(history, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore })
                 });
 
                 if (history.OperationType == "authorization" && history.Status == "succeeded")

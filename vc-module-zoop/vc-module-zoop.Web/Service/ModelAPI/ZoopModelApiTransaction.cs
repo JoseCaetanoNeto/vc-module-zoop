@@ -177,7 +177,7 @@ namespace Zoop.ModelApi
         public string ReferenceId { get; set; }
 
         [JsonProperty("metadata")]
-        public object Metadata { get; set; }
+        public Dictionary<string, string> Metadata { get; set; }
 
         [JsonProperty("fees")]
         public Fees fees { get; set; }

@@ -42,7 +42,7 @@ namespace Zoop.Web
             var userManagerService = appBuilder.ApplicationServices.GetRequiredService<UserManager<ApplicationUser>>();
             
             paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodCard(ZoopOptions, dynamicPropertySearchService));
-            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, customer, userManagerService));
+            paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, dynamicPropertySearchService, customer, userManagerService));
         }
 
         public void Uninstall()
