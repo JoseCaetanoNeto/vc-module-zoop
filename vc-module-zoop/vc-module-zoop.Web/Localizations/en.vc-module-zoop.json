@@ -52,7 +52,7 @@
         "title": "status Order On Waiting Confirm",
         "description": "status Order On Waiting Gateway Confirm"
       },
-      "statusOrderOnAuthorization": {
+      "statusOrderOnPaid": {
         "title": "status Order On Paid",
         "description": "status Order On 100% Paid success"
       },
