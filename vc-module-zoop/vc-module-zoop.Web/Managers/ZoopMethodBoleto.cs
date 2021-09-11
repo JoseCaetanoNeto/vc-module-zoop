@@ -257,6 +257,7 @@ namespace Zoop.Web.Managers
                 CreatedDate = payment.Transactions.Max(o => o.CreatedDate);
 
             var historys = transation.history.Where(o => o.CreatedAt > CreatedDate).ToList();
+            decimal AmountPay = 0;
             foreach (var history in historys)
             {
                 //"id": "a062501fd2a04dc89bf2bb713573f8b5",
@@ -288,18 +289,21 @@ namespace Zoop.Web.Managers
 
                 if (history.OperationType == "paid" && history.Status == "succeeded")
                 {
+                    AmountPay += history.Amount;
                     result.IsSuccess = true;
                     // não tem campo para incluir os pagamentos parciais
                     decimal payAmount = payment.Transactions.Where(t => t.Status == "paid").Sum(i => i.Amount);
                     if (payAmount >= payment.Sum)
                     {
                         result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
-                        ApplyOrderStatus(order, statusOrderOnPaid);
                         payment.Status = PaymentStatus.Paid.ToString();
                         payment.CapturedDate = DateTime.UtcNow;
                         payment.IsApproved = true;
                         payment.Comment = $"Paid successfully. Transaction Info {history.Id}{Environment.NewLine}";
                         payment.AuthorizedDate = DateTime.UtcNow;
+                        var PaymentTotal = order.InPayments.Where(p => p.PaymentStatus == PaymentStatus.Paid).Sum(p => p.Sum) + AmountPay;
+                        if (PaymentTotal >= order.Total)
+                            ApplyOrderStatus(order, statusOrderOnPaid);
                     }
                 }
                 // TODO: falta ver como vem evento de boleto vencido

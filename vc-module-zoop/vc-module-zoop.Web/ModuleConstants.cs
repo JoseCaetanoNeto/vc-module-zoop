@@ -202,9 +202,9 @@ namespace Zoop.Web
                     DefaultValue = "Pending"
                 };
 
-                public static readonly SettingDescriptor statusOrderOnAuthorization = new SettingDescriptor
+                public static readonly SettingDescriptor statusOrderOnPaid = new SettingDescriptor
                 {
-                    Name = "VirtoCommerce.Payment.Zoop.statusOrderOnAuthorization",
+                    Name = "VirtoCommerce.Payment.Zoop.statusOrderOnPaid",
                     GroupName = "Payment|Zoop",
                     ValueType = SettingValueType.ShortText,
                     DefaultValue = "Processing"
@@ -253,7 +253,7 @@ namespace Zoop.Web
                             Capture,
                             installmentPlan,
                             statusOrderOnWaitingConfirm,
-                            statusOrderOnAuthorization,
+                            statusOrderOnPaid,
                             statusOrderOnFailedAuthorization,
                             statusOrderOnPreAuthorization,
                             statusOrderOnFailedPreAuthorization,

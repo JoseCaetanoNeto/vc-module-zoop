@@ -53,8 +53,8 @@
         "description": "status Order On Waiting Gateway Confirm"
       },
       "statusOrderOnAuthorization": {
-        "title": "status Order On Authorization",
-        "description": "status Order On Authorization success"
+        "title": "status Order On Paid",
+        "description": "status Order On 100% Paid success"
       },
       "statusOrderOnFailedAuthorization": {
         "title": "status Order On Failed Authorization",
@@ -89,6 +89,50 @@
       "statusOrderOnWaitingConfirm": {
         "title": "status Order On Waiting Confirm",
         "description": "status Order On Waiting Gateway Confirm"
+      },
+      "statusOrderOnOverdue": {
+        "title": "Status order on overdue",
+        "description": ""
+      },
+      "statusOrderOnPaid": {
+        "title": "Status order on paid",
+        "description": ""
+      },
+      "interestMode": {
+        "title": "Interest Mode",
+        "description": ""
+      },
+      "interestAmount": {
+        "title": "Interest Amount",
+        "description": ""
+      },
+      "lateFeeMode": {
+        "title": "Late fee mode",
+        "description": ""
+      },
+      "lateFeeAmount": {
+        "title": "Late fee amount",
+        "description": ""
+      },
+      "ExpirationInDays": {
+        "title": "Expiration in days",
+        "description": ""
+      },
+      "PaymentLimitInDays": {
+        "title": "Payment Limit in days",
+        "description": ""
+      },
+      "Description": {
+        "title": "Boleto Description",
+        "description": ""
+      },
+      "UrlLogo": {
+        "title": "Url Imagem in boleto",
+        "description": ""
+      },
+      "BodyInstructions": {
+        "title": "Body instructions",
+        "description": ""
       }
     }
   }

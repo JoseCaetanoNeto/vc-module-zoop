@@ -11,6 +11,9 @@ using VirtoCommerce.CustomerModule.Core.Services;
 using VirtoCommerce.Platform.Core.DynamicProperties;
 using Microsoft.AspNetCore.Identity;
 using VirtoCommerce.Platform.Core.Security;
+using Zoop.Web.Validation;
+using FluentValidation;
+using VirtoCommerce.OrdersModule.Core.Model;
 
 namespace Zoop.Web
 {
@@ -25,6 +28,7 @@ namespace Zoop.Web
 
             serviceCollection.AddOptions<ZoopSecureOptions>().Bind(configuration.GetSection("Payments:Zoop")).ValidateDataAnnotations();
             serviceCollection.AddTransient<IZoopRegisterPaymentService, ZoopRegisterPaymentService>();
+            serviceCollection.AddTransient<IValidator<PaymentIn>, ZoopPaymentInValidator>();
         }
 
         public void PostInitialize(IApplicationBuilder appBuilder)

@@ -86,12 +86,12 @@ namespace Zoop.Web.Managers
             }
         }
 
-        private string statusOrderOnAuthorization
+        private string statusOrderOnPaid
         {
             get
             {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnAuthorization.Name,
-                    ModuleConstants.Settings.Zoop.statusOrderOnAuthorization.DefaultValue.ToString());
+                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.statusOrderOnPaid.Name,
+                    ModuleConstants.Settings.Zoop.statusOrderOnPaid.DefaultValue.ToString());
             }
         }
 
@@ -289,6 +289,7 @@ namespace Zoop.Web.Managers
                 CreatedDate = payment.Transactions.Max(o => o.CreatedDate);
 
             var historys = transation.history.Where(o => o.UpdatedAt > CreatedDate).ToList();
+            decimal AmountPay = 0;
             foreach (var history in historys)
             {
                 //"id": "bca7c3d3bc8849afbe6cb533f423b639",
@@ -322,14 +323,20 @@ namespace Zoop.Web.Managers
 
                 if (history.OperationType == "authorization" && history.Status == "succeeded")
                 {
+                    AmountPay += history.Amount;
+
                     result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
                     result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOnAuthorization);
+
                     payment.Status = PaymentStatus.Paid.ToString();
                     payment.CapturedDate = DateTime.UtcNow;
                     payment.IsApproved = true;
                     payment.Comment = $"Paid successfully. Transaction Info {history.Id}, authorization code: {history.AuthorizationCode}{Environment.NewLine}";
                     payment.AuthorizedDate = DateTime.UtcNow;
+                    var PaymentTotal = order.InPayments.Where(p => p.PaymentStatus == PaymentStatus.Paid).Sum(p => p.Sum) + AmountPay;
+                    if (PaymentTotal >= order.Total)
+                        ApplyOrderStatus(order, statusOrderOnPaid);
+
                 }
                 else if (history.OperationType == "authorization" && history.Status == "failed")
                 {
