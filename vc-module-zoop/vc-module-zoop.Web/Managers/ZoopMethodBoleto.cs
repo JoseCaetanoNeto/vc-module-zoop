@@ -299,7 +299,7 @@ namespace Zoop.Web.Managers
                         payment.Status = PaymentStatus.Paid.ToString();
                         payment.CapturedDate = DateTime.UtcNow;
                         payment.IsApproved = true;
-                        payment.Comment = $"Paid successfully. Transaction Info {history.Id}{Environment.NewLine}";
+                        payment.Comment += $"Paid successfully. Transaction Info {history.Id}{Environment.NewLine}";
                         payment.AuthorizedDate = DateTime.UtcNow;
                         var PaymentTotal = order.InPayments.Where(p => p.PaymentStatus == PaymentStatus.Paid).Sum(p => p.Sum) + AmountPay;
                         if (PaymentTotal >= order.Total)
