@@ -1,10 +1,15 @@
 using System.Collections.Generic;
 using VirtoCommerce.Platform.Core.Settings;
 
-namespace Zoop.Web
+namespace Zoop.Core
 {
     public static class ModuleConstants
     {
+        public const string K_Expiration_Date = "expiration_date";
+        public const string K_Url_Boleto = "urlBoleto";
+        public const string K_Zoop_Fee = "zoop_fee_brazil";
+        public const string K_Installment_plan = "installment_plan";
+
         public static class Settings
         {
             public static class ZoopBoleto
@@ -125,6 +130,31 @@ namespace Zoop.Web
                     DefaultValue = "Pedido :#order.Number"
                 };
 
+                public static readonly SettingDescriptor CompensationDays = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.CompensationDays",
+                    GroupName = "Payment|Zoop",
+                    ValueType = SettingValueType.PositiveInteger,
+                    DefaultValue = 3
+                };
+
+                public static readonly SettingDescriptor EnableSyncJob = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.EnableSyncJob",
+                    GroupName = "Payment|General",
+                    ValueType = SettingValueType.Boolean,
+                    DefaultValue = true
+                };
+
+                public static readonly SettingDescriptor CronSyncJob = new SettingDescriptor
+                {
+                    Name = "VirtoCommerce.Payment.ZoopBoleto.CronSyncJob",
+                    GroupName = "Payment|General",
+                    ValueType = SettingValueType.ShortText,
+                    DefaultValue = "0 4 */1 * *"
+                };
+
+
                 public static IEnumerable<SettingDescriptor> Settings
                 {
                     get
@@ -143,7 +173,10 @@ namespace Zoop.Web
                             PaymentLimitInDays,
                             Description,
                             UrlLogo,
+                            CompensationDays,
                             BodyInstructions,
+                            CronSyncJob,
+                            EnableSyncJob,
                             VCmanagerURL,
                         };
                     }

@@ -72,6 +72,12 @@ namespace Zoop.Web
             return transation;
         }
 
+        public ModelApi.TransactionBoletoOut GetBoletoTansation(string pTransactionId)
+        {
+            var transation = ConexoesApi.EfetuarChamadaApi<ModelApi.TransactionBoletoOut>(BuildUrl(C_NewTansationBoletoEndPoint) + "/" + pTransactionId, GetBasicAut(), "GET");
+            return transation;
+        }
+
         public void SendMailBoletoTansation(string pTransactionId)
         {
             ConexoesApi.EfetuarChamadaApi<ModelApi.Generic>(BuildUrl(C_EnviarBoleto, pTransactionId), GetBasicAut(), "POST");
@@ -101,7 +107,7 @@ namespace Zoop.Web
 
             string url = pURL + C_WebHook;
 
-            
+
 
             var list = ConexoesApi.EfetuarChamadaApi<ModelApi.ListWebHookOut>(BuildUrl(C_WebHookEndPoid), GetBasicAut(), "GET", null);
             bool found = false;

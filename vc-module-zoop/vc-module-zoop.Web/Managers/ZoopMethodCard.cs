@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Zoop.Core;
 using VirtoCommerce.OrdersModule.Core.Model;
 using VirtoCommerce.PaymentModule.Core.Model;
 using VirtoCommerce.PaymentModule.Model.Requests;
@@ -203,8 +204,8 @@ namespace Zoop.Web.Managers
                 }
                 else
                 {
-                    resultSearch.SetDynamicProp(payment, "installment_plan", transation.installmentPlan.Mode);
-                    resultSearch.SetDynamicProp(payment, "zoop_fee_brazil", transation.fees.Total);
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Installment_plan, transation.installmentPlan.Mode);
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Zoop_Fee, transation.fees.Total);
 
                     ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
                     retVal.IsSuccess = true;

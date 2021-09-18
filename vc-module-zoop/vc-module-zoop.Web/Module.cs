@@ -14,6 +14,11 @@ using VirtoCommerce.Platform.Core.Security;
 using Zoop.Web.Validation;
 using FluentValidation;
 using VirtoCommerce.OrdersModule.Core.Model;
+using Zoop.Core;
+using Hangfire;
+using VirtoCommerce.Platform.Hangfire.Extensions;
+using VirtoCommerce.Platform.Hangfire;
+using Zoop.Data.BackgroundJobs;
 
 namespace Zoop.Web
 {
@@ -44,7 +49,18 @@ namespace Zoop.Web
             var customer = appBuilder.ApplicationServices.GetRequiredService<IMemberService>();
             var dynamicPropertySearchService = appBuilder.ApplicationServices.GetRequiredService<IDynamicPropertySearchService>();
             var userManagerService = appBuilder.ApplicationServices.GetRequiredService<UserManager<ApplicationUser>>();
-            
+
+            var recurringJobManager = appBuilder.ApplicationServices.GetService<IRecurringJobManager>();
+            var settingsManager = appBuilder.ApplicationServices.GetRequiredService<ISettingsManager>();
+
+            recurringJobManager.WatchJobSetting(
+            settingsManager,
+            new SettingCronJobBuilder()
+                .SetEnablerSetting(ModuleConstants.Settings.ZoopBoleto.EnableSyncJob)
+                .SetCronSetting(ModuleConstants.Settings.ZoopBoleto.CronSyncJob)
+                .ToJob<BoletoJob>(x => x.Process())
+                .Build());
+
             paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodCard(ZoopOptions, dynamicPropertySearchService));
             paymentMethodsRegistrar.RegisterPaymentMethod(() => new ZoopMethodBoleto(ZoopOptions, dynamicPropertySearchService, customer, userManagerService));
         }

@@ -78,6 +78,18 @@
         "title": "ID do Marketplace na zoop",
         "description": "Informe o ID do Marketplace fornecido pela Zoop"
       },
+      "CompensationDays": {
+        "title": "Compensation Days",
+        "description": "Dias de espera de compensação para considerá boleto não pago"
+      },
+      "EnableSyncJob": {
+        "title": "Enable Sync Job for check boleto expired",
+        "description": ""
+      },
+      "CronSyncJob": {
+        "title": "Cron expression for processing job execution",
+        "description": "The value is a regular CRON expression.\nTo run task every X minutes please use \"0/x * * * *\".\nTo run it every X hours at 00 minutes use \"0 */X * * *\". You can also specify minutes: \"15 */x * * *\"\nTo run it every X days at midnight use \"0 0 */x * *\""
+      },
       "DefaultSaller": {
         "title": "Vendedor default",
         "description": "Informar o GUID do vendedor que será utilizado para os pagamentos em cartão"

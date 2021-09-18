@@ -16,6 +16,7 @@ using VirtoCommerce.Platform.Core.DynamicProperties;
 using VirtoCommerce.Platform.Core.Security;
 using VirtoCommerce.Platform.Core.Settings;
 using VirtoCommerce.StoreModule.Core.Model;
+using Zoop.Core;
 
 namespace Zoop.Web.Managers
 {
@@ -212,9 +213,9 @@ namespace Zoop.Web.Managers
                 else
                 {
                     IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
-                    resultSearch.SetDynamicProp(payment, "zoop_fee_brazil", transation.Fees);
-                    resultSearch.SetDynamicProp(payment, "urlBoleto", transation.paymentMethod.Url);
-                    resultSearch.SetDynamicProp(payment, "expiration_date", transation.paymentMethod.ExpirationDate.ToUniversalTime().ToString("yyyy-MM-dd"));
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Zoop_Fee, transation.Fees);
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Url_Boleto, transation.paymentMethod.Url);
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Expiration_Date, transation.paymentMethod.ExpirationDate.ToUniversalTime().ToString("yyyy-MM-dd"));
                     
                     Task.Run(() => zoopService.SendMailBoletoTansation(transation.paymentMethod.Id));
                     retVal.IsSuccess = true;
