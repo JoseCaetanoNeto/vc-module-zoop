@@ -30,6 +30,7 @@ namespace Zoop.Web.Managers
             _dynamicPropertySearchService = dynamicPropertySearchService;
         }
 
+        private const string K_PaidStatusZoop = "paid";
         private readonly ZoopSecureOptions _options;
         private readonly IMemberService _memberService;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -215,7 +216,7 @@ namespace Zoop.Web.Managers
                     IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
                     resultSearch.SetDynamicProp(payment, ModuleConstants.K_Zoop_Fee, transation.Fees);
                     resultSearch.SetDynamicProp(payment, ModuleConstants.K_Url_Boleto, transation.paymentMethod.Url);
-                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Expiration_Date, transation.paymentMethod.ExpirationDate.ToUniversalTime().ToString("yyyy-MM-dd"));
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Expiration_Date, transation.paymentMethod.ExpirationDate);
                     
                     Task.Run(() => zoopService.SendMailBoletoTansation(transation.paymentMethod.Id));
                     retVal.IsSuccess = true;
@@ -288,12 +289,16 @@ namespace Zoop.Web.Managers
                     ResponseData = JsonConvert.SerializeObject(history, Formatting.None, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore })
                 });
 
-                if (history.OperationType == "paid" && history.Status == "succeeded")
+                if (history.OperationType == K_PaidStatusZoop && history.Status == "succeeded")
                 {
+                    IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Zoop_Fee, transation.Fees);
+
                     AmountPay += history.Amount;
                     result.IsSuccess = true;
                     // não tem campo para incluir os pagamentos parciais
-                    decimal payAmount = payment.Transactions.Where(t => t.Status == "paid").Sum(i => i.Amount);
+                    decimal payAmount = payment.Transactions.Where(t => t.Status == K_PaidStatusZoop).Sum(i => i.Amount);
+                    
                     if (payAmount >= payment.Sum)
                     {
                         result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Paid;
@@ -306,17 +311,7 @@ namespace Zoop.Web.Managers
                         if (PaymentTotal >= order.Total)
                             ApplyOrderStatus(order, statusOrderOnPaid);
                     }
-                }
-                // TODO: falta ver como vem evento de boleto vencido
-                else if (transation.Status == "invoice.overdue" && history.Status == "succeeded")
-                {
-                    result.NewPaymentStatus = payment.PaymentStatus = PaymentStatus.Voided;
-                    result.IsSuccess = true;
-                    ApplyOrderStatus(order, statusOrderOverdue);
-                    payment.Status = PaymentStatus.Voided.ToString();
-                    payment.VoidedDate = DateTime.UtcNow;
-                    payment.IsCancelled = true;
-                }
+                }                
             }
             return result;
         }

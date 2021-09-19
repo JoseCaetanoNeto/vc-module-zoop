@@ -163,7 +163,7 @@ namespace Zoop.Web.Managers
 
             IList<DynamicProperty> resultSearch = _dynamicPropertySearchService.SearchDynamicPropertiesAsync(new DynamicPropertySearchCriteria() { ObjectType = "VirtoCommerce.OrdersModule.Core.Model.PaymentIn" }).GetAwaiter().GetResult().Results;
 
-            resultSearch.SetDynamicProp(payment, "numberInstallments", numberInstallments);
+            resultSearch.SetDynamicProp(payment, ModuleConstants.K_numberIntallments, numberInstallments);
 
             var transactionInput = new ModelApi.TransactionIn
             {
