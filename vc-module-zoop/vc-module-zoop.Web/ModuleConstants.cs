@@ -7,10 +7,11 @@ namespace Zoop.Core
     {
         public const string K_Expiration_Date = "expiration_date";
         public const string K_Url_Boleto = "urlBoleto";
+        public const string K_Barcode = "barcode";
         public const string K_Zoop_Fee = "zoop_fee";
         public const string K_Installment_plan = "installment_plan";
         public const string K_numberIntallments = "numberInstallments";
-
+        
         public static class Settings
         {
             public static class ZoopBoleto
