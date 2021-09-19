@@ -52,7 +52,7 @@ namespace Zoop.Data.BackgroundJobs
 
                     try
                     {
-                        var query = repository.InPayments.Where(p => p.GatewayCode == nameof(ZoopMethodBoleto) && p.CustomerOrder.Status == statusOrderOnWaitingConfirm && !p.IsCancelled && p.DynamicPropertyObjectValues.Any(d => d.PropertyName == ModuleConstants.K_Expiration_Date && d.DateTimeValue < DateTime.Now.AddDays(-days)));
+                        var query = repository.InPayments.Where(p => p.GatewayCode == nameof(ZoopMethodBoleto) && p.CustomerOrder.Status == statusOrderOnWaitingConfirm && !p.IsCancelled && p.DynamicPropertyObjectValues.Any(d => d.PropertyName == ModuleConstants.K_Expiration_Date && d.DateTimeValue < DateTime.Now.AddHours(-3).Date.AddDays(-days)));
 
                         var ids = await query.Select(p => new { CustomerOrderId = p.CustomerOrderId, PaymentId = p.Id }).ToListAsync();
                         if (ids.Count == 0)
