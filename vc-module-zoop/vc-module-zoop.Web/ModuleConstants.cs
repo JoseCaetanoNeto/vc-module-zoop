@@ -177,9 +177,19 @@ namespace Zoop.Core
                             UrlLogo,
                             CompensationDays,
                             BodyInstructions,
-                            CronSyncJob,
-                            EnableSyncJob,
                             VCmanagerURL,
+                        };
+                    }
+                }
+
+                public static IEnumerable<SettingDescriptor> GlobalSettings
+                {
+                    get
+                    {
+                        return new List<SettingDescriptor>
+                        {
+                            CronSyncJob,
+                            EnableSyncJob
                         };
                     }
                 }
@@ -305,6 +315,7 @@ namespace Zoop.Core
                 get
                 {
                     var list = new List<SettingDescriptor>();
+                    list.AddRange(ZoopBoleto.GlobalSettings);
                     list.AddRange(Zoop.Settings);
                     list.AddRange(ZoopBoleto.Settings);
                     return list;
