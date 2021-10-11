@@ -204,7 +204,7 @@ namespace Zoop.Web.Managers
                 }
                 else
                 {
-                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Installment_plan, transation.installmentPlan.Mode);
+                    resultSearch.SetDynamicProp(payment, ModuleConstants.K_Installment_plan, installmentPlan);
                     resultSearch.SetDynamicProp(payment, ModuleConstants.K_Zoop_Fee, transation.fees.Total);
 
                     ApplyOrderStatus(order, statusOrderOnWaitingConfirm);
