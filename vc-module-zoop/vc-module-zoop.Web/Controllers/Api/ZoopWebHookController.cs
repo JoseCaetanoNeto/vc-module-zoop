@@ -26,7 +26,7 @@ namespace VirtoCommerce.Zoop.Web.Controllers.Api
         [AllowAnonymous]
         public async Task<ActionResult> RegisterPayment([FromBody] WebhookIn gatewayPagamento)
         {
-            string orderId = gatewayPagamento.payload.@object?["reference_id"].ToString();
+            string orderId = gatewayPagamento?.payload?.@object?["reference_id"].ToString();
             var result = await _ZoopRegisterPaymentService.CallbackPaymentAsync(orderId, gatewayPagamento);
             return !string.IsNullOrEmpty(result) ? Ok(result) : (ActionResult)NoContent();
         }
