@@ -25,14 +25,6 @@ namespace Zoop.Core
                     DefaultValue = "informe código do vendedor padrão da zoop"
                 };
 
-                public static readonly SettingDescriptor VCmanagerURL = new SettingDescriptor
-                {
-                    Name = "VirtoCommerce.Payment.ZoopBoleto.VCmanagerURL",
-                    GroupName = "Payment|Zoop",
-                    ValueType = SettingValueType.SecureString,
-                    DefaultValue = ""
-                };
-
                 public static readonly SettingDescriptor statusOrderOnWaitingConfirm = new SettingDescriptor
                 {
                     Name = "VirtoCommerce.Payment.ZoopBoleto.statusOrderOnWaitingConfirm",
@@ -176,8 +168,7 @@ namespace Zoop.Core
                             Description,
                             UrlLogo,
                             CompensationDays,
-                            BodyInstructions,
-                            VCmanagerURL,
+                            BodyInstructions
                         };
                     }
                 }
@@ -212,14 +203,6 @@ namespace Zoop.Core
                     GroupName = "Payment|Zoop",
                     ValueType = SettingValueType.PositiveInteger,
                     DefaultValue = 1
-                };
-
-                public static readonly SettingDescriptor VCmanagerURL = new SettingDescriptor
-                {
-                    Name = "VirtoCommerce.Payment.Zoop.VCmanagerURL",
-                    GroupName = "Payment|Zoop",
-                    ValueType = SettingValueType.SecureString,
-                    DefaultValue = ""
                 };
 
                 public static readonly SettingDescriptor Capture = new SettingDescriptor
@@ -302,8 +285,7 @@ namespace Zoop.Core
                             statusOrderOnFailedAuthorization,
                             statusOrderOnPreAuthorization,
                             statusOrderOnFailedPreAuthorization,
-                            statusOrderOnCancelAuthorization,
-                            VCmanagerURL,
+                            statusOrderOnCancelAuthorization,                            
                             MaxNumberInstallments,
                         };
                     }

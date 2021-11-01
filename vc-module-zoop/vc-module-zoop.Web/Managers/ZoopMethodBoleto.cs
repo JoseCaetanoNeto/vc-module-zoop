@@ -49,15 +49,6 @@ namespace Zoop.Web.Managers
             }
         }
 
-        private string VCmanagerURL
-        {
-            get
-            {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.ZoopBoleto.VCmanagerURL.Name,
-                    ModuleConstants.Settings.ZoopBoleto.VCmanagerURL.DefaultValue.ToString());
-            }
-        }
-
         private string statusOrderOnWaitingConfirm
         {
             get
@@ -185,10 +176,10 @@ namespace Zoop.Web.Managers
             }
 
             ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-
+            
             try
             {
-                Task.Run(() => zoopService.registerWebHook(VCmanagerURL));
+                Task.Run(() => zoopService.registerWebHook(_options.backend_url));
                 var customer = GetCustomerAsync(order.CustomerId).GetAwaiter().GetResult();
 
                 ModelApi.BuyerOut buyerOut = SenderBuyer(zoopService, order, customer as Contact);

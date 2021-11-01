@@ -10,5 +10,7 @@ namespace Zoop.Web
         /// Zoop APP_id
         /// </summary>
         public string applycation_id { get; set; }
+
+        public string backend_url { get; set; }
     }
 }

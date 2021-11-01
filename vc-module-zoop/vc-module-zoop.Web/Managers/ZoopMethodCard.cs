@@ -38,16 +38,7 @@ namespace Zoop.Web.Managers
                 return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.DefaultSaller.Name,
                     ModuleConstants.Settings.Zoop.DefaultSaller.DefaultValue.ToString());
             }
-        }
-
-        private string VCmanagerURL
-        {
-            get
-            {
-                return Settings?.GetSettingValue(ModuleConstants.Settings.Zoop.VCmanagerURL.Name,
-                    ModuleConstants.Settings.Zoop.VCmanagerURL.DefaultValue.ToString());
-            }
-        }
+        }        
 
         private bool Capture
         {
@@ -190,7 +181,7 @@ namespace Zoop.Web.Managers
             try
             {
                 ZoopService zoopService = new ZoopService(_options.marketplace_id, _options.applycation_id);
-                Task.Run(() => zoopService.registerWebHook(VCmanagerURL));
+                Task.Run(() => zoopService.registerWebHook(_options.backend_url));
                 var transation = zoopService.NewCardTansation(transactionInput);
                 payment.Status = PaymentStatus.Pending.ToString();
                 retVal.OuterId = payment.OuterId = transation.Id;
