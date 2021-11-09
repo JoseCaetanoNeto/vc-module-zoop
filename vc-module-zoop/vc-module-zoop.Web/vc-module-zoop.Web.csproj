@@ -29,7 +29,4 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Scripts\resources\" />
-    </ItemGroup>
 </Project>
