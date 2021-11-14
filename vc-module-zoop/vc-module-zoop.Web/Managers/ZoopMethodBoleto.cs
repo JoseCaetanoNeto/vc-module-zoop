@@ -438,7 +438,7 @@ namespace Zoop.Web.Managers
                     Line1 = address.Line1,
                     Line2 = address.Line2,
                     Neighborhood = address.RegionName,
-                    PostalCode = address.PostalCode,
+                    PostalCode = address.Zip,
                     State = address.RegionId
                 },
             };
